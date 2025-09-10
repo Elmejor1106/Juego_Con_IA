@@ -1,0 +1,1 @@
+// Lógica de Negocio: Reglas de negocio para la interacción con la IA.

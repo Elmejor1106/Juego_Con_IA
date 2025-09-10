@@ -1,0 +1,1 @@
+// Vista (View): Muestra la lista de juegos públicos y permite jugarlos.

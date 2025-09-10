@@ -1,0 +1,1 @@
+// ViewModel: Lógica de presentación y estado para la administración.

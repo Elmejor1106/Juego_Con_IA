@@ -1,0 +1,1 @@
+// Lógica de Negocio: Funciones de utilidad.

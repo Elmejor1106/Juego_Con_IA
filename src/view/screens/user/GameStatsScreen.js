@@ -1,0 +1,1 @@
+// Vista (View): Muestra las estadísticas de un juego.

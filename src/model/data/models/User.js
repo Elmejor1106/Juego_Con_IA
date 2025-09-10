@@ -1,0 +1,1 @@
+// Modelo (Model): Define la estructura de datos del Usuario.

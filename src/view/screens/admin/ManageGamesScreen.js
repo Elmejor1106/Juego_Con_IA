@@ -1,0 +1,1 @@
+// Vista (View): UI para la gestión de todos los juegos del sistema.

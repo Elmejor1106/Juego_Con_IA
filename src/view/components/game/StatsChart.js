@@ -1,0 +1,1 @@
+// Vista (View): Componente para mostrar estadísticas en un gráfico.

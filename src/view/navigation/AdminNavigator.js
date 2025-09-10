@@ -1,0 +1,1 @@
+// Vista (View): Navegador para las pantallas de administración.
