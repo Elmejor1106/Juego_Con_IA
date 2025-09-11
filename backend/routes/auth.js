@@ -1,5 +1,4 @@
 
-require('dotenv').config({ path: './.env' });
 const express = require('express');
 const router = express.Router();
 const bcrypt = require('bcryptjs');
@@ -38,14 +37,18 @@ router.post('/register', async (req, res) => {
 
     console.log('6. Insertando nuevo usuario en la base de datos...');
     const [result] = await pool.query(
-      'INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)',
+      'INSERT INTO users (username, email, password_hash, role, status) VALUES (?, ?, ?, \'user\', \'active\')',
       [username, email, hashedPassword]
     );
     console.log('7. Resultado de la inserción:', result);
     const userId = result.insertId;
 
-    console.log(`8. Creando JWT para el usuario con ID: ${userId} y nombre: ${username}`);
-    const payload = { user: { id: userId, username: username } };
+    // Obtener el rol recién asignado (por defecto 'user')
+    const [userRows] = await pool.query('SELECT role FROM users WHERE id = ?', [userId]);
+    const userRole = userRows.length > 0 ? userRows[0].role : 'user';
+
+    console.log(`8. Creando JWT para el usuario con ID: ${userId}, nombre: ${username}, rol: ${userRole}`);
+    const payload = { user: { id: userId, username: username, role: userRole } };
 
     jwt.sign(
       payload,

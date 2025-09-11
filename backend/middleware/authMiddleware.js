@@ -1,15 +1,13 @@
 const jwt = require('jsonwebtoken');
+const pool = require('../config/db');
 
-const authMiddleware = (req, res, next) => {
-  // Obtener el token de la cabecera de autorización
+const authMiddleware = async (req, res, next) => {
   const authHeader = req.header('Authorization');
 
-  // Verificar si la cabecera existe
   if (!authHeader) {
     return res.status(401).json({ msg: 'No hay token, autorización denegada' });
   }
 
-  // Verificar si el token tiene el formato correcto (Bearer <token>)
   const tokenParts = authHeader.split(' ');
   if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
     return res.status(401).json({ msg: 'Token mal formado' });
@@ -17,16 +15,37 @@ const authMiddleware = (req, res, next) => {
 
   const token = tokenParts[1];
 
-  // Verificar el token
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    
+    // En lugar de confiar en el token, obtenemos los datos frescos de la BD
+    const [rows] = await pool.query('SELECT id, role, status FROM users WHERE id = ?', [decoded.user.id]);
+    const user = rows[0];
 
-    // Añadir el usuario decodificado (del payload del token) al objeto request
-    req.user = decoded.user;
-    next(); // Pasar al siguiente middleware o a la ruta
+    if (!user) {
+        return res.status(401).json({ msg: 'Usuario no encontrado.' });
+    }
+
+    if (user.status !== 'active') {
+        return res.status(403).json({ msg: 'Tu cuenta está inactiva. Contacta al administrador.' });
+    }
+
+    // Adjuntamos el usuario fresco (con id, role, status) al request
+    req.user = user;
+    next();
+
   } catch (err) {
     res.status(401).json({ msg: 'El token no es válido' });
   }
 };
 
-module.exports = authMiddleware;
+const isAdmin = (req, res, next) => {
+    // Este middleware debe correr DESPUÉS de authMiddleware
+    if (req.user && req.user.role === 'admin') {
+        next();
+    } else {
+        res.status(403).json({ msg: 'Acceso denegado. Se requiere rol de administrador.' });
+    }
+};
+
+module.exports = { authMiddleware, isAdmin };

@@ -88,6 +88,20 @@ const GameService = {
       throw new Error(error.response?.data?.msg || 'No se pudo eliminar el juego');
     }
   },
+  /**
+   * Registra que un usuario jugó un juego.
+   * @param {string} gameId - El ID del juego jugado.
+   * @returns {Promise<object>} Un mensaje de confirmación.
+   */
+  logGamePlay: async (gameId) => {
+    try {
+      const response = await apiClient.post(`/games/${gameId}/play`);
+      return response.data;
+    } catch (error) {
+      console.error("Error al registrar la partida:", error.response?.data?.msg || error.message);
+      throw new Error(error.response?.data?.msg || 'No se pudo registrar la partida');
+    }
+  },
 };
 
 export default GameService;

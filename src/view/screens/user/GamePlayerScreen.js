@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import GameViewModel from '../../../viewModel/game/GameViewModel';
+import GameService from '../../../model/business_logic/services/GameService'; // Importar GameService
 import Button from '../../components/common/Button';
 
 const GamePlayerScreen = () => {
@@ -28,6 +29,11 @@ const GamePlayerScreen = () => {
       setLoading(false);
     };
     fetchGame();
+  }, [gameId]);
+
+  // Log game play when component mounts
+  useEffect(() => {
+    GameService.logGamePlay(gameId);
   }, [gameId]);
 
   const handleAnswerSelect = (answer) => {

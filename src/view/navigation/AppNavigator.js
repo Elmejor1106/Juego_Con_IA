@@ -1,6 +1,9 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import AuthNavigator from './AuthNavigator';
+import AdminNavigator from './AdminNavigator';
+import AdminDashboardScreen from '../screens/admin/AdminDashboardScreen';
+import ManageUsersScreen from '../screens/admin/ManageUsersScreen';
 import HomeScreen from '../screens/user/HomeScreen';
 import UserGamesScreen from '../screens/user/UserGamesScreen';
 import CreateGameScreen from '../screens/user/CreateGameScreen';
@@ -26,8 +29,12 @@ const AppNavigator = () => {
             <Route path="/user-games" element={<UserGamesScreen />} />
             <Route path="/create-game" element={<CreateGameScreen />} />
             <Route path="/create-game-editor/:templateId" element={<GameEditorScreen />} />
-            <Route path="/play/:gameId" element={<GamePlayerScreen />} /> {/* Ruta para jugar */}
-            
+            <Route path="/play/:gameId" element={<GamePlayerScreen />} />
+            {/* Rutas protegidas para admin */}
+            <Route path="/admin" element={<AdminNavigator />}>
+              <Route path="dashboard" element={<AdminDashboardScreen />} />
+              <Route path="users" element={<ManageUsersScreen />} />
+            </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
           <Route path="/create-ai-game" element={<CreateGameAIScreen />} />

@@ -1,28 +1,45 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import GameViewModel from '../../../viewModel/game/GameViewModel';
 import GameCard from '../../components/game/GameCard';
 import Button from '../../components/common/Button';
 
 const UserGamesScreen = () => {
+  const navigate = useNavigate();
   const [games, setGames] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const loadGames = async () => {
-      setIsLoading(true);
-      const result = await GameViewModel.fetchMyGames();
-      if (result.success) {
-        setGames(result.games);
-      } else {
-        setError(result.error);
-      }
-      setIsLoading(false);
-    };
-
-    loadGames();
+  const loadGames = useCallback(async () => {
+    setIsLoading(true);
+    const result = await GameViewModel.fetchMyGames();
+    if (result.success) {
+      setGames(result.games);
+    } else {
+      setError(result.error);
+    }
+    setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    loadGames();
+  }, [loadGames]);
+
+  const handleEditGame = (gameId) => {
+    navigate(`/edit-game/${gameId}`);
+  };
+
+  const handleDeleteGame = async (gameId) => {
+    if (window.confirm('¿Estás seguro de que quieres eliminar este juego? Esta acción no se puede deshacer.')) {
+      const result = await GameViewModel.deleteGame(gameId);
+      if (result.success) {
+        alert('Juego eliminado con éxito.');
+        loadGames(); // Recargar la lista de juegos
+      } else {
+        alert(`Error al eliminar el juego: ${result.message}`);
+      }
+    }
+  };
 
   return (
     <div className="fade-in">
@@ -57,7 +74,12 @@ const UserGamesScreen = () => {
           {games.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {games.map(game => (
-                    <GameCard key={game.id} game={game} />
+                    <GameCard 
+                      key={game.id} 
+                      game={game} 
+                      onEdit={handleEditGame} 
+                      onDelete={handleDeleteGame} 
+                    />
                 ))}
             </div>
           ) : (

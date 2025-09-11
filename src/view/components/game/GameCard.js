@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import Card from '../common/Card';
 import Button from '../common/Button';
 
-const GameCard = ({ game }) => {
+const GameCard = ({ game, onEdit, onDelete }) => {
   const { id, title, description, is_public, created_at, template_name } = game;
   const navigate = useNavigate();
 
@@ -35,9 +35,21 @@ const GameCard = ({ game }) => {
         <p className="text-xs text-slate-500">
           Creado: {formattedDate}
         </p>
-        <Button onClick={handlePlay} className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm py-1.5 px-3 shadow-sm hover:shadow-md">
-          Jugar
-        </Button>
+        <div className="flex space-x-2">
+          {onEdit && (
+            <Button onClick={() => onEdit(id)} className="bg-sky-500 hover:bg-sky-600 text-white text-sm py-1.5 px-3 shadow-sm hover:shadow-md">
+              Editar
+            </Button>
+          )}
+          {onDelete && (
+            <Button onClick={() => onDelete(id)} className="bg-red-500 hover:bg-red-600 text-white text-sm py-1.5 px-3 shadow-sm hover:shadow-md">
+              Eliminar
+            </Button>
+          )}
+          <Button onClick={handlePlay} className="bg-emerald-500 hover:bg-emerald-600 text-white text-sm py-1.5 px-3 shadow-sm hover:shadow-md">
+            Jugar
+          </Button>
+        </div>
       </div>
     </Card>
   );

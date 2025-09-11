@@ -1,12 +1,16 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../../context/AuthContext'; // Importar el hook de autenticación
 
-// Iconos SVG para un look profesional sin dependencias externas
+// --- Iconos ---
 const HomeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg>;
 const GameIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0l3 3m0 0l3-3m-3 3V4" /></svg>;
 const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+const AdminIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v1h8z" /></svg>;
+const UsersIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M15 21a6 6 0 00-9-5.197" /></svg>;
 
 const SideBar = () => {
+  const { user } = useAuth(); // Obtener el usuario del contexto
   const commonClasses = 'flex items-center px-4 py-3 rounded-lg transition-colors duration-200';
   const activeClass = 'bg-sky-500 text-white font-bold shadow-lg';
   const inactiveClass = 'text-slate-300 hover:bg-slate-700 hover:text-white';
@@ -20,36 +24,31 @@ const SideBar = () => {
 
       {/* Menú de Navegación */}
       <nav className="flex-1 px-4 py-6">
+        {/* Menú de Usuario */}
         <ul>
-          <li>
-            <NavLink
-              to="/"
-              end
-              className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}
-            >
-              <HomeIcon />
-              <span className="ml-4">Inicio</span>
-            </NavLink>
-          </li>
-          <li className="mt-3">
-            <NavLink
-              to="/user-games"
-              className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}
-            >
-              <GameIcon />
-              <span className="ml-4">Mis Juegos</span>
-            </NavLink>
-          </li>
-          <li className="mt-3">
-            <NavLink
-              to="/create-game"
-              className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}
-            >
-              <PlusIcon />
-              <span className="ml-4">Crear Juego</span>
-            </NavLink>
-          </li>
+          <li><NavLink to="/" end className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}><HomeIcon /><span className="ml-4">Inicio</span></NavLink></li>
+          <li className="mt-3"><NavLink to="/user-games" className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}><GameIcon /><span className="ml-4">Mis Juegos</span></NavLink></li>
+          <li className="mt-3"><NavLink to="/create-game" className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}><PlusIcon /><span className="ml-4">Crear Juego</span></NavLink></li>
         </ul>
+
+        {/* Menú de Administrador (Condicional) */}
+        {user && user.role === 'admin' && (
+          <div className="mt-8">
+            <h2 className="px-4 text-sm font-semibold text-slate-400 uppercase tracking-wider">Administración</h2>
+            <ul className="mt-3">
+              <li><NavLink to="/admin/dashboard" className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}><AdminIcon /><span className="ml-4">Dashboard</span></NavLink></li>
+              <li className="mt-3">
+                <NavLink 
+                  to="/admin/users" 
+                  className={({ isActive }) => `${commonClasses} ${isActive ? activeClass : inactiveClass}`}
+                >
+                  <UsersIcon />
+                  <span className="ml-4">Usuarios</span>
+                </NavLink>
+              </li>
+            </ul>
+          </div>
+        )}
       </nav>
 
       {/* Footer de la Sidebar (opcional) */}

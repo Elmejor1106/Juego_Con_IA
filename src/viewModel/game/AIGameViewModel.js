@@ -1,4 +1,5 @@
 import aiApi from '../../model/data/api/aiApi';
+import GameService from '../../model/business_logic/services/GameService';
 
 const AIGameViewModel = {
   /**
@@ -22,6 +23,37 @@ const AIGameViewModel = {
     }
     
     return { success: true, reply: result.reply };
+  },
+
+  /**
+   * Calls the AI service to generate a full game based on a description.
+   * @param {string} description - The detailed description of the game.
+   * @returns {Promise<Object>} - An object containing the generated game data or. an error
+   */
+  generateGame: async (description) => {
+    const result = await aiApi.createGameFromDescription(description);
+    return result;
+  },
+
+  /**
+   * Saves a newly created game to the database.
+   * @param {Object} gameData - The game data object (title, description, questions).
+   * @returns {Promise<Object>} - The newly created game from the backend or an error object.
+   */
+  saveGame: async (gameData) => {
+    try {
+      // We need to add template_id and is_public to the gameData
+      // I'll assume template_id 1 (Cuestionario) and is_public false by default.
+      const fullGameData = {
+        ...gameData,
+        template_id: 1, // 'Cuestionario'
+        is_public: false,
+      };
+      const newGame = await GameService.createGame(fullGameData);
+      return { success: true, game: newGame };
+    } catch (error) {
+      return { success: false, message: error.message || 'Failed to save the game.' };
+    }
   }
 };
 

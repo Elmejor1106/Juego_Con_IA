@@ -1,16 +1,62 @@
+
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
-const authMiddleware = require('../middleware/authMiddleware');
+const { authMiddleware, isAdmin } = require('../middleware/authMiddleware');
 
-// Middleware para verificar si el usuario es administrador (sin cambios)
-const adminOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
-    next();
-  } else {
-    res.status(403).json({ msg: 'Acceso denegado. Se requiere rol de administrador.' });
+// @route   DELETE api/games/:id
+// @desc    Eliminar un juego (dueño o admin)
+// @access  Private
+router.delete('/:id', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  const userId = req.user.id;
+  const userRole = req.user.role;
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    // Verificar si el usuario es el dueño o admin
+    const [gameResult] = await connection.query('SELECT user_id FROM games WHERE id = ?', [gameId]);
+    if (gameResult.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ msg: 'Juego no encontrado' });
+    }
+    const gameOwnerId = gameResult[0].user_id;
+    if (gameOwnerId !== userId && userRole !== 'admin') {
+      await connection.rollback();
+      return res.status(403).json({ msg: 'Acceso denegado. No eres el dueño de este juego ni un administrador.' });
+    }
+    // Eliminar respuestas y preguntas asociadas
+    await connection.query('DELETE FROM game_answers WHERE question_id IN (SELECT id FROM game_questions WHERE game_id = ?)', [gameId]);
+    await connection.query('DELETE FROM game_questions WHERE game_id = ?', [gameId]);
+    // Eliminar el juego
+    await connection.query('DELETE FROM games WHERE id = ?', [gameId]);
+    await connection.commit();
+    res.json({ msg: 'Juego eliminado correctamente' });
+  } catch (err) {
+    await connection.rollback();
+    console.error(err.message);
+    res.status(500).send('Error del Servidor');
+  } finally {
+    connection.release();
   }
-};
+});
+
+// @route   POST api/games/:id/play
+// @desc    Registrar que un usuario jugó un juego
+// @access  Private
+router.post('/:id/play', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  const userId = req.user.id;
+  try {
+    await pool.query('INSERT INTO game_plays (game_id, user_id, played_at) VALUES (?, ?, NOW())', [gameId, userId]);
+    res.json({ msg: 'Partida registrada' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ msg: 'Error al registrar la partida' });
+  }
+});
+
+
 
 // @route   GET api/games/templates
 // @desc    Obtener todas las plantillas de juegos disponibles
@@ -115,7 +161,7 @@ router.post('/', authMiddleware, async (req, res) => {
 // @route   GET api/games
 // @desc    Obtener todos los juegos (para Admin)
 // @access  Private (Admin only)
-router.get('/', [authMiddleware, adminOnly], async (req, res) => {
+router.get('/', [authMiddleware, isAdmin], async (req, res) => {
   try {
     const [games] = await pool.query(`
       SELECT g.id, g.user_id, g.title, g.is_public, g.created_at, u.username, t.name as template_name
@@ -131,24 +177,6 @@ router.get('/', [authMiddleware, adminOnly], async (req, res) => {
   }
 });
 
-// @route   DELETE api/games/:id
-// @desc    Eliminar un juego (para Admin)
-// @access  Private (Admin only)
-router.delete('/:id', [authMiddleware, adminOnly], async (req, res) => {
-  try {
-    // La eliminación en cascada se encargará de las preguntas y respuestas
-    const [result] = await pool.query('DELETE FROM games WHERE id = ?', [req.params.id]);
-
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ msg: 'Juego no encontrado' });
-    }
-
-    res.json({ msg: 'Juego eliminado correctamente' });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send('Error del Servidor');
-  }
-});
 
 // @route   GET api/games/:id
 // @desc    Obtener un juego específico por ID con sus preguntas y respuestas
@@ -181,6 +209,79 @@ router.get('/:id', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Error del Servidor');
+  }
+});
+
+// @route   PUT api/games/:id
+// @desc    Actualizar un juego existente con sus preguntas y respuestas
+// @access  Private
+router.put('/:id', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  const { title, description, is_public, questions } = req.body;
+  const userId = req.user.id;
+
+  const connection = await pool.getConnection();
+
+  try {
+    await connection.beginTransaction();
+
+    // Verificar que el juego existe y pertenece al usuario o es admin
+    const [games] = await connection.query('SELECT user_id FROM games WHERE id = ?', [gameId]);
+    if (games.length === 0) {
+      await connection.rollback();
+      return res.status(404).json({ msg: 'Juego no encontrado' });
+    }
+    const gameOwnerId = games[0].user_id;
+    if (gameOwnerId !== userId && req.user.role !== 'admin') {
+      await connection.rollback();
+      return res.status(403).json({ msg: 'No autorizado para editar este juego' });
+    }
+
+    // Actualizar detalles del juego
+    await connection.query(
+      'UPDATE games SET title = ?, description = ?, is_public = ? WHERE id = ?',
+      [title, description, is_public, gameId]
+    );
+
+    // Eliminar preguntas y respuestas existentes para reinsertar (simplificado)
+    // TODO: Optimizar para hacer actualizaciones incrementales en lugar de eliminar y reinsertar todo
+    await connection.query('DELETE FROM game_answers WHERE question_id IN (SELECT id FROM game_questions WHERE game_id = ?)', [gameId]);
+    await connection.query('DELETE FROM game_questions WHERE game_id = ?', [gameId]);
+
+    // Insertar nuevas preguntas y respuestas
+    if (questions && Array.isArray(questions)) {
+      for (const q of questions) {
+        const newQuestion = {
+          game_id: gameId,
+          question_text: q.question_text,
+          order: q.order,
+        };
+        const [questionResult] = await connection.query('INSERT INTO game_questions SET ?', newQuestion);
+        const questionId = questionResult.insertId;
+
+        if (q.answers && Array.isArray(q.answers)) {
+          for (const a of q.answers) {
+            const newAnswer = {
+              question_id: questionId,
+              answer_text: a.answer_text,
+              is_correct: a.is_correct,
+              order: a.order,
+            };
+            await connection.query('INSERT INTO game_answers SET ?', newAnswer);
+          }
+        }
+      }
+    }
+
+    await connection.commit();
+    res.json({ msg: 'Juego actualizado correctamente' });
+
+  } catch (err) {
+    await connection.rollback();
+    console.error(err.message);
+    res.status(500).send('Error del Servidor');
+  } finally {
+    connection.release();
   }
 });
 

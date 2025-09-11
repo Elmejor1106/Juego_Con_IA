@@ -47,15 +47,43 @@ const GameViewModel = {
    * @param {object} gameData - Datos del juego (title, template_id, etc.).
    * @returns {Promise<Object>} Un objeto con el estado del éxito y el juego creado o el error.
    */
+
   createGame: async (gameData) => {
     // Validación básica en el ViewModel
     if (!gameData.title || !gameData.template_id) {
       return { success: false, error: 'El título y la plantilla son obligatorios.' };
     }
-
     try {
       const newGame = await GameService.createGame(gameData);
       return { success: true, game: newGame };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Llama al servicio para eliminar un juego por su ID.
+   * @param {string} gameId - El ID del juego a eliminar.
+   * @returns {Promise<Object>} Un objeto con el estado del éxito o error.
+   */
+  deleteGame: async (gameId) => {
+    try {
+      const result = await GameService.deleteGame(gameId);
+      return { success: true, result };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Llama al servicio para registrar que un usuario jugó un juego.
+   * @param {string} gameId - El ID del juego jugado.
+   * @returns {Promise<Object>} Un objeto con el estado del éxito o error.
+   */
+  logGamePlay: async (gameId) => {
+    try {
+      const result = await GameService.logGamePlay(gameId);
+      return { success: true, result };
     } catch (error) {
       return { success: false, error: error.message };
     }

@@ -25,6 +25,30 @@ const aiApi = {
         reply: error.response?.data?.error || 'No se pudo obtener una respuesta de la IA. Inténtalo de nuevo.' 
       };
     }
+  },
+
+  /**
+   * Sends a description to the backend to generate a full game structure.
+   * @param {string} description - The detailed description of the game.
+   * @returns {Promise<Object>} - The response from the API containing the game JSON.
+   */
+  createGameFromDescription: async (description) => {
+    try {
+      const payload = { description };
+      const response = await apiClient.post('/ai/create-game', payload);
+      return { error: false, data: response.data };
+    } catch (error) {
+      console.error('Axios Error Details:', error);
+      if (error.response) {
+        console.error('Backend Response Data:', error.response.data);
+        console.error('Backend Response Status:', error.response.status);
+      }
+      return { 
+        error: true, 
+        data: null,
+        message: error.response?.data?.error || 'No se pudo generar el juego desde la IA.' 
+      };
+    }
   }
 };
 

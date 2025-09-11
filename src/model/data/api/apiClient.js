@@ -1,4 +1,3 @@
-
 import axios from 'axios';
 
 // Crea una instancia de axios pre-configurada
