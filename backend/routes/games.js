@@ -91,6 +91,26 @@ router.get('/my-games', authMiddleware, async (req, res) => {
   }
 });
 
+// @route   GET api/games/public
+// @desc    Obtener todos los juegos públicos
+// @access  Public
+router.get('/public', async (req, res) => {
+  try {
+    const [games] = await pool.query(
+      `SELECT g.id, g.title, g.description, g.is_public, g.created_at, t.name as template_name, u.username 
+       FROM games g 
+       JOIN game_templates t ON g.template_id = t.id 
+       JOIN users u ON g.user_id = u.id
+       WHERE g.is_public = 1 
+       ORDER BY g.created_at DESC`
+    );
+    res.json(games);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).send('Error del Servidor');
+  }
+});
+
 // @route   POST api/games
 // @desc    Crear un nuevo juego a partir de una plantilla
 // @access  Private

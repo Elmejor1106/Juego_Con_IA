@@ -35,7 +35,7 @@ const GameCard = ({ game, onEdit, onDelete }) => {
         <p className="text-xs text-slate-500">
           Creado: {formattedDate}
         </p>
-        <div className="flex space-x-2">
+  <div className="flex flex-wrap gap-2">
           {onEdit && (
             <Button onClick={() => onEdit(id)} className="bg-sky-500 hover:bg-sky-600 text-white text-sm py-1.5 px-3 shadow-sm hover:shadow-md">
               Editar

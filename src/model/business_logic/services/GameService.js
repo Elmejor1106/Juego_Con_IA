@@ -31,6 +31,20 @@ const GameService = {
   },
 
   /**
+   * Obtiene todos los juegos públicos.
+   * @returns {Promise<Array>} Una promesa que se resuelve con un array de juegos públicos.
+   */
+  getPublicGames: async () => {
+    try {
+      const response = await apiClient.get('/games/public');
+      return response.data;
+    } catch (error) {
+      console.error("Error al obtener los juegos públicos:", error.response?.data?.msg || error.message);
+      throw new Error(error.response?.data?.msg || 'No se pudieron obtener los juegos públicos');
+    }
+  },
+
+  /**
    * Crea un nuevo juego.
    * @param {object} gameData - Datos del juego a crear (title, description, template_id, is_public, questions).
    * @returns {Promise<object>} El juego recién creado.
@@ -57,6 +71,22 @@ const GameService = {
     } catch (error) {
       console.error("Error al obtener el juego:", error.response?.data?.msg || error.message);
       throw new Error(error.response?.data?.msg || 'No se pudo obtener el juego');
+    }
+  },
+
+  /**
+   * Actualiza un juego existente.
+   * @param {string} gameId - El ID del juego a actualizar.
+   * @param {object} gameData - Datos del juego a actualizar.
+   * @returns {Promise<object>} El juego actualizado.
+   */
+  updateGame: async (gameId, gameData) => {
+    try {
+      const response = await apiClient.put(`/games/${gameId}`, gameData);
+      return response.data;
+    } catch (error) {
+      console.error("Error al actualizar el juego:", error.response?.data?.msg || error.message);
+      throw new Error(error.response?.data?.msg || 'No se pudo actualizar el juego');
     }
   },
 
@@ -88,6 +118,7 @@ const GameService = {
       throw new Error(error.response?.data?.msg || 'No se pudo eliminar el juego');
     }
   },
+
   /**
    * Registra que un usuario jugó un juego.
    * @param {string} gameId - El ID del juego jugado.

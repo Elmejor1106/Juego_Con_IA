@@ -29,6 +29,19 @@ const GameViewModel = {
   },
 
   /**
+   * Llama al servicio para obtener los juegos públicos.
+   * @returns {Promise<Object>} Un objeto con el estado del éxito y los datos o el error.
+   */
+  fetchPublicGames: async () => {
+    try {
+      const games = await GameService.getPublicGames();
+      return { success: true, games };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
    * Llama al servicio para obtener un juego específico por su ID.
    * @param {string} gameId - El ID del juego a obtener.
    * @returns {Promise<Object>} Un objeto con el estado del éxito y los datos del juego o el error.
@@ -56,6 +69,24 @@ const GameViewModel = {
     try {
       const newGame = await GameService.createGame(gameData);
       return { success: true, game: newGame };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  },
+
+  /**
+   * Llama al servicio para actualizar un juego existente.
+   * @param {string} gameId - El ID del juego a actualizar.
+   * @param {object} gameData - Datos del juego a actualizar.
+   * @returns {Promise<Object>} Un objeto con el estado del éxito y el juego actualizado o el error.
+   */
+  updateGame: async (gameId, gameData) => {
+    if (!gameData.title) {
+      return { success: false, error: 'El título es obligatorio.' };
+    }
+    try {
+      const updatedGame = await GameService.updateGame(gameId, gameData);
+      return { success: true, game: updatedGame };
     } catch (error) {
       return { success: false, error: error.message };
     }

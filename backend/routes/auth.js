@@ -94,7 +94,8 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username, // Añadido para que esté disponible en el frontend
-        role: user.role
+        role: user.role,
+        status: user.status
       },
     };
 

@@ -114,6 +114,7 @@ const prompt = `
       - Haya entre 5 y 10 preguntas en total.
       - Cada pregunta tenga entre 3 y 4 respuestas.
       - Solo UNA respuesta por pregunta sea la correcta (\`is_correct: true\`).
+      
       - El contenido sea educativo, preciso y relacionado con la descripción del usuario.
       - El JSON esté perfectamente formado.
     `;

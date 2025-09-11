@@ -9,7 +9,9 @@ import UserGamesScreen from '../screens/user/UserGamesScreen';
 import CreateGameScreen from '../screens/user/CreateGameScreen';
 import GameEditorScreen from '../screens/user/GameEditorScreen';
 import CreateGameAIScreen from '../screens/user/CreateGameAIScreen';
-import GamePlayerScreen from '../screens/user/GamePlayerScreen'; // Importar la pantalla de juego
+import PublicGamesScreen from '../screens/user/PublicGamesScreen';
+import GamePlayerScreen from '../screens/user/GamePlayerScreen';
+
 import { useAuth } from '../../context/AuthContext';
 import MainLayout from '../components/common/MainLayout';
 
@@ -29,6 +31,8 @@ const AppNavigator = () => {
             <Route path="/user-games" element={<UserGamesScreen />} />
             <Route path="/create-game" element={<CreateGameScreen />} />
             <Route path="/create-game-editor/:templateId" element={<GameEditorScreen />} />
+            <Route path="/edit-game/:gameId" element={<GameEditorScreen />} />
+            <Route path="/public-games" element={<PublicGamesScreen />} />
             <Route path="/play/:gameId" element={<GamePlayerScreen />} />
             {/* Rutas protegidas para admin */}
             <Route path="/admin" element={<AdminNavigator />}>

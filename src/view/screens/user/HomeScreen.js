@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import UserViewModel from '../../../viewModel/user/UserViewModel';
+import GameViewModel from '../../../viewModel/game/GameViewModel';
 import Button from '../../components/common/Button';
+import GameCard from '../../components/game/GameCard';
 
 // Componente para las tarjetas de estadísticas del dashboard
 const StatCard = ({ title, value, icon, color, loading }) => (
@@ -27,25 +29,30 @@ const PlayIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-
 const HomeScreen = () => {
   const navigate = useNavigate();
   const [stats, setStats] = useState(null);
+  const [publicGames, setPublicGames] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const getStats = async () => {
-      console.log('[HomeScreen] Iniciando getStats...');
+    const loadData = async () => {
       setLoading(true);
-      const result = await UserViewModel.fetchDashboardStats();
-      console.log('[HomeScreen] Resultado de fetchDashboardStats:', result);
-      if (result.success) {
-        setStats(result.data);
-      } else {
-        console.error('[HomeScreen] Error al obtener estadísticas:', result.message);
-        // Aquí podrías manejar el error de forma más visible si lo deseas
+      // Fetch stats
+      const statsResult = await UserViewModel.fetchDashboardStats();
+      if (statsResult.success) {
+        setStats(statsResult.data);
+      }
+      // Fetch public games
+      const gamesResult = await GameViewModel.fetchPublicGames();
+      if (gamesResult.success) {
+        setPublicGames(gamesResult.games.slice(0, 3)); // Get first 3 games
       }
       setLoading(false);
     };
-    console.log('[HomeScreen] Componente montado, llamando a getStats.');
-    getStats();
+    loadData();
   }, []);
+
+  const handlePlayGame = (gameId) => {
+    navigate(`/play/${gameId}`);
+  };
 
   return (
     <div className="fade-in">
@@ -57,6 +64,22 @@ const HomeScreen = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
         <StatCard title="Juegos Creados" value={stats?.gamesCreated ?? 0} icon={<GamepadIcon />} color="#3B82F6" loading={loading} />
         <StatCard title="Partidas Jugadas" value={stats?.gamesPlayed ?? 0} icon={<PlayIcon />} color="#10B981" loading={loading} />
+      </div>
+
+      <div className="mb-10">
+        <div className="flex justify-between items-center mb-4">
+          <h2 className="text-xl font-bold text-slate-800">Juegos Públicos Recientes</h2>
+          <Link to="/public-games" className="text-sm font-medium text-sky-600 hover:text-sky-700">Ver todos</Link>
+        </div>
+        {loading ? (
+          <p>Cargando...</p>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {publicGames.map(game => (
+              <GameCard key={game.id} game={game} onPlay={handlePlayGame} />
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="bg-white p-6 rounded-xl shadow-lg border border-slate-200">

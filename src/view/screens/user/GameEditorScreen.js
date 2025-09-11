@@ -7,14 +7,14 @@ import Input from '../../components/common/Input';
 import SuccessModal from '../../components/common/SuccessModal';
 
 const GameEditorScreen = () => {
-  const { templateId } = useParams();
+  const { templateId, gameId } = useParams();
   const navigate = useNavigate();
 
   const [game, setGame] = useState({
     title: '',
     description: '',
-    is_public: false,
-    template_id: parseInt(templateId),
+    is_public: 0,
+    template_id: templateId ? parseInt(templateId) : null,
     questions: [],
   });
   const [template, setTemplate] = useState(null);
@@ -29,25 +29,44 @@ const GameEditorScreen = () => {
   });
 
   useEffect(() => {
-    const fetchTemplate = async () => {
-      const result = await GameViewModel.getTemplates();
-      if (result.success) {
-        const foundTemplate = result.templates.find(t => t.id === parseInt(templateId));
-        setTemplate(foundTemplate);
-        if (foundTemplate.name === 'Cuestionario') {
-          setGame(g => ({ ...g, questions: [createNewQuestion()] }));
+    const loadData = async () => {
+      setIsLoading(true);
+      if (gameId) {
+        const result = await GameViewModel.getGameById(gameId);
+        if (result.success) {
+          setGame(result.game);
+          const templatesResult = await GameViewModel.getTemplates();
+          if (templatesResult.success) {
+            const foundTemplate = templatesResult.templates.find(t => t.id === result.game.template_id);
+            setTemplate(foundTemplate);
+          }
+        } else {
+          setError('No se pudo cargar el juego para editar.');
         }
-      } else {
-        setError('No se pudo cargar la plantilla.');
+      } else if (templateId) {
+        const result = await GameViewModel.getTemplates();
+        if (result.success) {
+          const foundTemplate = result.templates.find(t => t.id === parseInt(templateId));
+          setTemplate(foundTemplate);
+          if (foundTemplate && foundTemplate.name === 'Cuestionario') {
+            setGame(g => ({ ...g, questions: [createNewQuestion()] }));
+          }
+        } else {
+          setError('No se pudo cargar la plantilla.');
+        }
       }
       setIsLoading(false);
     };
-    fetchTemplate();
-  }, [templateId]);
+    loadData();
+  }, [gameId, templateId]);
 
   const handleGameChange = (e) => {
-    const { name, value, type, checked } = e.target;
-    setGame({ ...game, [name]: type === 'checkbox' ? checked : value });
+    const { name, value } = e.target;
+    if (name === 'is_public') {
+      setGame({ ...game, is_public: game.is_public === 1 ? 0 : 1 });
+    } else {
+      setGame({ ...game, [name]: value });
+    }
   };
 
   const handleQuestionChange = (qIndex, e) => {
@@ -82,7 +101,9 @@ const GameEditorScreen = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    const result = await GameViewModel.createGame(game);
+    const result = gameId 
+      ? await GameViewModel.updateGame(gameId, game) 
+      : await GameViewModel.createGame(game);
     setIsLoading(false);
     if (result.success) {
       setShowSuccessModal(true);
@@ -103,7 +124,7 @@ const GameEditorScreen = () => {
     <div className="fade-in">
       <div className="flex justify-between items-center mb-8">
         <div>
-            <h1 className="text-3xl font-bold text-slate-800">Editor de Juego</h1>
+            <h1 className="text-3xl font-bold text-slate-800">{gameId ? 'Editar Juego' : 'Editor de Juego'}</h1>
             <p className="text-slate-500 mt-1">
                 Plantilla: <span className="font-semibold text-sky-600">{template?.name}</span>
             </p>
@@ -122,8 +143,16 @@ const GameEditorScreen = () => {
                   <Input name="title" value={game.title} onChange={handleGameChange} placeholder="Título del Juego" required />
                   <textarea name="description" value={game.description} onChange={handleGameChange} placeholder="Añade una descripción..." className="w-full p-3 border border-slate-300 rounded-md focus:ring-2 focus:ring-sky-400 transition" rows="3"/>
                   <div className="flex items-center">
-                      <input type="checkbox" name="is_public" checked={game.is_public} onChange={handleGameChange} id="is_public" className="h-4 w-4 rounded border-slate-300 text-sky-600 focus:ring-sky-500"/>
-                      <label htmlFor="is_public" className="ml-2 block text-sm text-slate-700">Hacer Público</label>
+                    <label htmlFor="is_public" className="flex items-center cursor-pointer">
+                      <div className="relative">
+                        <input type="checkbox" id="is_public" name="is_public" className="sr-only" checked={game.is_public === 1} onChange={handleGameChange} />
+                        <div className={`block w-14 h-8 rounded-full ${game.is_public === 1 ? 'bg-sky-500' : 'bg-gray-300'}`}></div>
+                        <div className={`dot absolute left-1 top-1 bg-white w-6 h-6 rounded-full transition-transform ${game.is_public === 1 ? 'transform translate-x-6' : ''}`}></div>
+                      </div>
+                      <div className="ml-3 text-slate-700 font-medium">
+                        Hacer Público
+                      </div>
+                    </label>
                   </div>
                 </div>
               </div>
@@ -165,11 +194,11 @@ const GameEditorScreen = () => {
 
         <div className="mt-8 flex justify-end">
             <Button type="submit" disabled={isLoading} className="bg-emerald-500 hover:bg-emerald-600 text-white text-lg px-8 py-3 shadow-lg hover:shadow-xl">
-                {isLoading ? 'Guardando...' : 'Guardar Juego'}
+                {isLoading ? 'Guardando...' : (gameId ? 'Actualizar Juego' : 'Guardar Juego')}
             </Button>
         </div>
       </form>
-      {showSuccessModal && <SuccessModal message="Tu juego ha sido creado exitosamente." onDone={handleCloseModal} />}
+      {showSuccessModal && <SuccessModal message={`Tu juego ha sido ${gameId ? 'actualizado' : 'creado'} exitosamente.`} onDone={handleCloseModal} />}
     </div>
   );
 };
