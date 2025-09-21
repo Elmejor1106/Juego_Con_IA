@@ -37,8 +37,8 @@ router.post('/register', async (req, res) => {
 
     console.log('6. Insertando nuevo usuario en la base de datos...');
     const [result] = await pool.query(
-      'INSERT INTO users (username, email, password_hash, role, status) VALUES (?, ?, ?, \'user\', \'active\')',
-      [username, email, hashedPassword]
+      'INSERT INTO users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
+      [username, email, hashedPassword, 'user']
     );
     console.log('7. Resultado de la inserción:', result);
     const userId = result.insertId;

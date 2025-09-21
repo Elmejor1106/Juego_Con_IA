@@ -49,6 +49,29 @@ const aiApi = {
         message: error.response?.data?.error || 'No se pudo generar el juego desde la IA.' 
       };
     }
+  },
+
+  /**
+   * Sends a topic to the backend to generate a list of question candidates.
+   * @param {Object} definition - The game definition object { topic, language, count }.
+   * @returns {Promise<Object>} - The response from the API containing the questions JSON.
+   */
+  generateQuestionsFromTopic: async (definition) => {
+    try {
+      const response = await apiClient.post('/ai/generate-questions', definition);
+      return { error: false, data: response.data };
+    } catch (error) {
+      console.error('Axios Error Details:', error);
+      if (error.response) {
+        console.error('Backend Response Data:', error.response.data);
+        console.error('Backend Response Status:', error.response.status);
+      }
+      return { 
+        error: true, 
+        data: null,
+        message: error.response?.data?.error || 'No se pudo generar la lista de preguntas.' 
+      };
+    }
   }
 };
 

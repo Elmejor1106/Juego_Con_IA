@@ -22,7 +22,28 @@ const GamePlayerScreen = () => {
       setLoading(true);
       const result = await GameViewModel.getGameById(gameId);
       if (result.success) {
-        setGame(result.game);
+        const fetchedGame = result.game;
+        // --- NEW: Parse game_state to get questions for AI games ---
+        if (fetchedGame.game_state) {
+            try {
+                const gameState = JSON.parse(fetchedGame.game_state);
+                if (gameState.questions && Array.isArray(gameState.questions)) {
+                    const processedGame = {
+                        ...fetchedGame,
+                        questions: gameState.questions
+                    };
+                    setGame(processedGame);
+                } else {
+                    setGame(fetchedGame);
+                }
+            } catch (e) {
+                console.error("Failed to parse game_state:", e);
+                setGame(fetchedGame); // Fallback to original game object on error
+            }
+        } else {
+            setGame(fetchedGame);
+        }
+        // --- END NEW ---
       } else {
         setError(result.error);
       }

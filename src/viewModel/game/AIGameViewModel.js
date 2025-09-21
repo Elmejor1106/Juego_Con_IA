@@ -54,6 +54,20 @@ const AIGameViewModel = {
     } catch (error) {
       return { success: false, message: error.message || 'Failed to save the game.' };
     }
+  },
+
+  /**
+   * Calls the AI service to generate a list of question candidates.
+   * @param {Object} definition - The game definition object { topic, language, count }.
+   * @returns {Promise<Object>} - An object containing the generated questions or an error.
+   */
+  generateQuestions: async (definition) => {
+    const result = await aiApi.generateQuestionsFromTopic(definition);
+    // The backend response is { data: { questions: [...] } } on success
+    if (result.error) {
+      return { error: true, message: result.message };
+    }
+    return result.data; // Should be { questions: [...] }
   }
 };
 
