@@ -8,14 +8,16 @@ const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
 // Helper function for retrying API calls
 async function generateWithRetry(model, prompt, retries = 3, delay = 2000) {
+  let currentDelay = delay;
   for (let i = 0; i < retries; i++) {
     try {
       const result = await model.generateContent(prompt);
       return result;
     } catch (error) {
       if (error.status === 503 && i < retries - 1) {
-        console.log(`Attempt ${i + 1} failed with 503. Retrying in ${delay / 1000}s...`);
-        await new Promise(res => setTimeout(res, delay));
+        console.log(`Attempt ${i + 1} failed with 503. Retrying in ${currentDelay / 1000}s...`);
+        await new Promise(res => setTimeout(res, currentDelay));
+        currentDelay *= 2; // Exponential backoff
       } else {
         console.error(`Final attempt failed or non-retriable error:`, error);
         throw error;
@@ -76,7 +78,11 @@ router.post('/chat', async (req, res) => {
     res.json({ reply: text });
   } catch (error) {
     console.error('Error calling Google Gemini API:', error);
-    res.status(500).json({ error: 'Failed to get response from AI' });
+    if (error.status === 503) {
+      res.status(503).json({ error: 'El servicio de IA está actualmente sobrecargado. Por favor, inténtalo de nuevo en unos momentos.' });
+    } else {
+      res.status(500).json({ error: 'Failed to get response from AI' });
+    }
   }
 });
 
@@ -116,14 +122,6 @@ const prompt = `
               { "answer_text": "Texto de otra respuesta incorrecta.", "is_correct": false },
               { "answer_text": "Texto de una tercera respuesta incorrecta.", "is_correct": false }
             ]
-          },
-          {
-            "question_text": "El texto completo de la pregunta 2.",
-            "answers": [
-              { "answer_text": "Texto de la respuesta correcta.", "is_correct": true },
-              { "answer_text": "Texto de una respuesta incorrecta.", "is_correct": false },
-              { "answer_text": "Texto de otra respuesta incorrecta.", "is_correct": false }
-            ]
           }
         ]
       }
@@ -131,8 +129,7 @@ const prompt = `
       Asegúrate de que:
       - Haya entre 5 y 10 preguntas en total.
       - Cada pregunta tenga EXACTAMENTE 4 respuestas.
-      - Solo UNA respuesta por pregunta sea la correcta (\`is_correct: true\").
-      
+      - Solo UNA respuesta por pregunta sea la correcta (\`is_correct: true\`).
       - El contenido sea educativo, preciso y relacionado con la descripción del usuario.
       - El JSON esté perfectamente formado.
     `;
@@ -142,14 +139,17 @@ const prompt = `
     const response = await result.response;
     const jsonText = response.text();
     
-    // Parse the JSON to ensure it's valid before sending
     const gameObject = JSON.parse(jsonText);
 
     res.json(gameObject);
 
   } catch (error) {
     console.error('Error calling Google Gemini API for game creation:', error);
-    res.status(500).json({ error: 'Failed to create game from AI' });
+    if (error.status === 503) {
+      res.status(503).json({ error: 'El servicio de IA está actualmente sobrecargado. Por favor, inténtalo de nuevo en unos momentos.' });
+    } else {
+      res.status(500).json({ error: 'Failed to create game from AI' });
+    }
   }
 });
 
@@ -181,9 +181,7 @@ router.post('/generate-questions', async (req, res) => {
       - Cada pregunta en el array tenga una estructura con "question_text" (string) y "answers" (array).
       - Cada objeto de respuesta en el array "answers" tenga "answer_text" (string) y "is_correct" (boolean).
       - Cada pregunta tenga EXACTAMENTE 4 respuestas.
-      - Solo UNA respuesta por pregunta sea la correcta (
-        is_correct: true
-      ).
+      - Solo UNA respuesta por pregunta sea la correcta (\`is_correct: true\`).
       - El contenido sea educativo, preciso y estrictamente relacionado con el tema proporcionado.
 
       Ejemplo de la estructura de respuesta esperada:
@@ -206,14 +204,100 @@ router.post('/generate-questions', async (req, res) => {
     const response = await result.response;
     const jsonText = response.text();
     
-    // Parse the JSON to ensure it's valid before sending
     const generatedData = JSON.parse(jsonText);
+
+    const shuffleArray = (array) => {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+      return array;
+    };
+
+    if (generatedData.questions && Array.isArray(generatedData.questions)) {
+      generatedData.questions.forEach(question => {
+        if (question.answers && Array.isArray(question.answers)) {
+          question.answers = shuffleArray(question.answers);
+        }
+      });
+    }
 
     res.json(generatedData);
 
   } catch (error) {
     console.error('Error calling Google Gemini API for question generation:', error);
-    res.status(500).json({ error: 'Failed to generate questions from AI' });
+    if (error.status === 503) {
+      res.status(503).json({ error: 'El servicio de IA está actualmente sobrecargado. Por favor, inténtalo de nuevo en unos momentos.' });
+    } else {
+      res.status(500).json({ error: 'Failed to generate questions from AI' });
+    }
+  }
+});
+
+// POST /api/ai/generate-style
+router.post('/generate-style', async (req, res) => {
+  const { description } = req.body;
+
+  if (!description) {
+    return res.status(400).json({ error: 'A description of the desired style is required' });
+  }
+
+  try {
+    const model = genAI.getGenerativeModel({
+      model: 'gemini-1.5-flash',
+      generationConfig: {
+        response_mime_type: 'application/json',
+      },
+    });
+
+    const prompt = `
+      Actúa como un experto diseñador de UI/UX especializado en accesibilidad y estética de juegos.
+      Basado en la siguiente descripción del usuario, genera una paleta de colores para un juego de preguntas y respuestas.
+      Descripción del usuario: "${description.replace(/"/g, '\\"')}"
+
+      Tu respuesta DEBE ser un único objeto JSON válido, sin texto antes o después.
+      El JSON debe tener la siguiente estructura exacta:
+      {
+        "containerBg": "#RRGGBB",
+        "questionText": "#RRGGBB",
+        "answerBg": "#RRGGBB",
+        "answerTextColor": "#RRGGBB",
+        "timerBg": "#RRGGBB",
+        "timerTextColor": "#RRGGBB"
+      }
+
+      Asegúrate de que:
+      - Los colores sean estéticamente agradables y coherentes con la descripción.
+      - Haya suficiente contraste entre los colores de fondo y de texto para garantizar la legibilidad (WCAG AA o superior).
+      - "containerBg" es el fondo de la tarjeta principal de la pregunta.
+      - "questionText" es el color del texto de la pregunta.
+      - "answerBg" es el fondo de los botones de respuesta.
+      - "answerTextColor" es el color del texto de los botones de respuesta.
+      - Todos los valores de color sean códigos hexadecimales de 6 dígitos válidos.
+    `;
+
+    const result = await generateWithRetry(model, prompt);
+    const response = await result.response;
+    const jsonText = response.text();
+    
+    const styleObject = JSON.parse(jsonText);
+
+    if (!styleObject.containerBg || !styleObject.questionText || !styleObject.answerBg || !styleObject.answerTextColor) {
+      throw new Error('AI response is missing required color fields.');
+    }
+
+    res.json(styleObject);
+
+  } catch (error) {
+    console.error('Error calling Google Gemini API for style generation:', error);
+    if (error.status === 503) {
+      res.status(503).json({ error: 'El servicio de IA está actualmente sobrecargado. Por favor, inténtalo de nuevo en unos momentos.' });
+    } else if (error instanceof SyntaxError) {
+      res.status(500).json({ error: 'La IA devolvió una respuesta con formato incorrecto. Por favor, intenta de nuevo.' });
+    }
+    else {
+      res.status(500).json({ error: 'Failed to generate style from AI' });
+    }
   }
 });
 

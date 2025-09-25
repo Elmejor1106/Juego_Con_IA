@@ -72,6 +72,24 @@ const aiApi = {
         message: error.response?.data?.error || 'No se pudo generar la lista de preguntas.' 
       };
     }
+  },
+  generateStyleFromDescription: async (description) => {
+    try {
+      const payload = { description };
+      const response = await apiClient.post('/ai/generate-style', payload);
+      return { error: false, data: response.data };
+    } catch (error) {
+      console.error('Axios Error Details:', error);
+      if (error.response) {
+        console.error('Backend Response Data:', error.response.data);
+        console.error('Backend Response Status:', error.response.status);
+      }
+      return { 
+        error: true, 
+        data: null,
+        message: error.response?.data?.error || 'No se pudo generar el estilo desde la IA.' 
+      };
+    }
   }
 };
 

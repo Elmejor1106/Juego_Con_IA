@@ -58,6 +58,7 @@ export const GameProvider = ({ children }) => {
 
   // Inicializar un nuevo juego
   const initializeNewGame = useCallback((title, description, questions) => {
+    console.log('[GameContext] ==> Initializing new game with', questions.length, 'questions.');
     const newGameId = uuidv4();
     const initialSlides = questions.map(q => ({
       id: uuidv4(),
@@ -65,21 +66,27 @@ export const GameProvider = ({ children }) => {
       elements: [], // Elementos visuales para esta diapositiva
     }));
 
-    setCurrentGame({
+    const newGame = {
       id: newGameId,
       title: title,
       description: description,
       slides: initialSlides,
       is_public: false, // Valor por defecto, se puede cambiar en el editor
       game_type: 'ai', // Siempre 'ai' para este flujo
-    });
+    };
+    console.log('[GameContext] ==> New game object created:', newGame);
+    setCurrentGame(newGame);
     setCurrentSlideIndex(0); // Siempre empezar en la primera diapositiva
   }, []);
 
   // Actualizar una diapositiva específica (ej. añadir/modificar elementos)
   const updateSlide = useCallback((slideId, newElements) => {
+    console.log(`[GameContext] ==> Updating slide ${slideId} with`, newElements.length, 'elements.');
     setCurrentGame(prevGame => {
-      if (!prevGame) return null;
+      if (!prevGame) {
+        console.warn('[GameContext] updateSlide called but there is no previous game.');
+        return null;
+      }
 
       const updatedSlides = prevGame.slides.map(slide => {
         if (slide.id === slideId) {
@@ -87,10 +94,10 @@ export const GameProvider = ({ children }) => {
         }
         return slide;
       });
-
-      // La comprobación JSON.stringify se elimina porque estaba causando 
-      // que los cambios válidos fueran ignorados incorrectamente.
-      return { ...prevGame, slides: updatedSlides };
+      
+      const newGame = { ...prevGame, slides: updatedSlides };
+      console.log('[GameContext] ==> Slide updated. New game state:', newGame);
+      return newGame;
     });
   }, []);
 

@@ -1,4 +1,3 @@
-
 const express = require('express');
 const router = express.Router();
 const pool = require('../config/db');
@@ -115,7 +114,7 @@ router.get('/public', async (req, res) => {
 // @desc    Crear un nuevo juego a partir de una plantilla
 // @access  Private
 router.post('/', authMiddleware, async (req, res) => {
-  const { title, description, template_id, is_public, questions } = req.body;
+  const { title, description, template_id, is_public, questions, styles } = req.body;
   const user_id = req.user.id;
 
   if (!title || !template_id) {
@@ -133,18 +132,19 @@ router.post('/', authMiddleware, async (req, res) => {
       title,
       description,
       is_public: is_public || false,
+      styles: styles ? JSON.stringify(styles) : null,
     };
 
     const [result] = await connection.query('INSERT INTO games SET ?', newGame);
     const gameId = result.insertId;
 
-    // Si la plantilla es un cuestionario y se envían preguntas, las insertamos
     if (questions && Array.isArray(questions)) {
       for (const q of questions) {
         const newQuestion = {
           game_id: gameId,
           question_text: q.question_text,
           order: q.order,
+          image_url: q.imageUrl || null,
         };
         const [questionResult] = await connection.query('INSERT INTO game_questions SET ?', newQuestion);
         const questionId = questionResult.insertId;
@@ -206,7 +206,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const gameId = req.params.id;
 
     // 1. Obtener los detalles del juego
-    const [gameResult] = await pool.query('SELECT id, title, description, template_id FROM games WHERE id = ?', [gameId]);
+    const [gameResult] = await pool.query('SELECT id, title, description, template_id, styles, is_public FROM games WHERE id = ?', [gameId]);
 
     if (gameResult.length === 0) {
       return res.status(404).json({ msg: 'Juego no encontrado' });
@@ -214,7 +214,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const game = gameResult[0];
 
     // 2. Obtener las preguntas del juego
-    const [questions] = await pool.query('SELECT id, question_text, `order` FROM game_questions WHERE game_id = ? ORDER BY `order` ASC', [gameId]);
+    const [questions] = await pool.query('SELECT id, question_text, `order`, image_url as imageUrl FROM game_questions WHERE game_id = ? ORDER BY `order` ASC', [gameId]);
 
     // 3. Para cada pregunta, obtener sus respuestas
     for (let i = 0; i < questions.length; i++) {
@@ -237,7 +237,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // @access  Private
 router.put('/:id', authMiddleware, async (req, res) => {
   const gameId = req.params.id;
-  const { title, description, is_public, questions } = req.body;
+  const { title, description, is_public, questions, styles } = req.body;
   const userId = req.user.id;
 
   const connection = await pool.getConnection();
@@ -259,12 +259,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Actualizar detalles del juego
     await connection.query(
-      'UPDATE games SET title = ?, description = ?, is_public = ? WHERE id = ?',
-      [title, description, is_public, gameId]
+      'UPDATE games SET title = ?, description = ?, is_public = ?, styles = ? WHERE id = ?',
+      [title, description, is_public, styles ? JSON.stringify(styles) : null, gameId]
     );
 
     // Eliminar preguntas y respuestas existentes para reinsertar (simplificado)
-    // TODO: Optimizar para hacer actualizaciones incrementales en lugar de eliminar y reinsertar todo
     await connection.query('DELETE FROM game_answers WHERE question_id IN (SELECT id FROM game_questions WHERE game_id = ?)', [gameId]);
     await connection.query('DELETE FROM game_questions WHERE game_id = ?', [gameId]);
 
@@ -275,6 +274,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
           game_id: gameId,
           question_text: q.question_text,
           order: q.order,
+          image_url: q.imageUrl || null
         };
         const [questionResult] = await connection.query('INSERT INTO game_questions SET ?', newQuestion);
         const questionId = questionResult.insertId;

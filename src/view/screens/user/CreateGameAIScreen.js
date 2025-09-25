@@ -1,519 +1,782 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import apiClient from '../../../model/data/api/apiClient';
+import { ArrowLeft, Share2, Bot, Loader, Wand2, BookOpen, Languages, Hash, Users, Award, Mic, Brain, ChevronLeft, ChevronRight, UploadCloud, Image as ImageIcon, X, PanelLeftClose, PanelLeftOpen, HelpCircle, Palette, CheckCircle2, Cloud } from 'lucide-react';
 import AIGameViewModel from '../../../viewModel/game/AIGameViewModel';
-import VisualEditor from '../../components/game/VisualEditor';
-import EditorToolbar from '../../components/game/EditorToolbar';
-import AssetPalette from '../../components/game/AssetPalette';
-import { GameProvider, useGame } from '../../../context/GameContext';
+import ImageService from '../../../model/business_logic/services/ImageService';
+import SuccessModal from '../../components/common/SuccessModal';
+import './CreateGameAIScreen.css';
 
-// --- Íconos SVG ---
-const BackIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 17l-5-5m0 0l5-5m-5 5h12" /></svg>;
-const SparklesIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M19 3v4M17 5h4M14 11l-1.5-1.5L11 11l-1.5 1.5L11 14l1.5-1.5L14 11zM12 21l-1.5-1.5L9 21l-1.5 1.5L9 24l1.5-1.5L12 21zM3 19v-4M5 19H1M21 19v-4M19 19h4" /></svg>;
-const ArrowLeftIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>;
-const ArrowRightIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>;
-const PlusCircleIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>;
+// --- Helper Components ---
 
+const AutoSaveIndicator = ({ isSaving }) => {
+    const [showSaved, setShowSaved] = useState(false);
+    const prevIsSaving = useRef(false);
 
-// --- Íconos para el nuevo panel lateral ---
-const ImageIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>;
-const UploadIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" /></svg>;
-const TemplateIcon = () => <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>;
+    useEffect(() => {
+        if (prevIsSaving.current && !isSaving) {
+            setShowSaved(true);
+            const timer = setTimeout(() => {
+                setShowSaved(false);
+            }, 2000); // Show for 2 seconds
+            return () => clearTimeout(timer);
+        }
+        prevIsSaving.current = isSaving;
+    }, [isSaving]);
 
+    if (isSaving) {
+        return (
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+                <Loader size={16} className="animate-spin" />
+                <span>Guardando...</span>
+            </div>
+        );
+    }
 
-// --- Vista de Definición del Juego (Paso 1) ---
-const DefineView = ({ onGenerate, isLoading }) => {
-  const [topic, setTopic] = useState('El sistema solar');
-  const [language, setLanguage] = useState('Español');
-  const [count, setCount] = useState(10);
+    if (showSaved) {
+        return (
+            <div className="flex items-center gap-2 text-sm text-green-600">
+                <CheckCircle2 size={16} />
+                <span>Guardado</span>
+            </div>
+        );
+    }
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onGenerate({ topic, language, count });
+    return (
+        <div className="flex items-center gap-2 text-sm text-gray-400">
+            <Cloud size={16} />
+            <span>Guardado en la nube</span>
+        </div>
+    );
+};
+
+const GameStateSelector = ({ isPublic, onStateChange }) => {
+    return (
+        <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-gray-700">Estado:</span>
+            <label className="inline-flex items-center cursor-pointer">
+                <input type="checkbox" checked={isPublic} onChange={(e) => onStateChange(e.target.checked)} className="sr-only peer" />
+                <div className="relative w-11 h-6 bg-gray-200 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </label>
+            <span className="text-sm font-medium text-gray-800 w-16 text-left">{isPublic ? 'Público' : 'Privado'}</span>
+        </div>
+    );
+};
+
+const SidebarButton = ({ icon, isActive, onClick }) => (
+  <button 
+    onClick={onClick}
+    className={`w-full flex items-center justify-center p-3 rounded-lg text-sm font-medium transition-colors ${isActive ? 'bg-blue-100 text-blue-700' : 'text-gray-600 hover:bg-gray-200'}`}>
+    {icon}
+  </button>
+);
+
+const NewSidebar = ({ onImagesLoaded }) => {
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+  const [activeSection, setActiveSection] = useState(null);
+  const [uploadedImages, setUploadedImages] = useState([]);
+  const [isUploadModalOpen, setUploadModalOpen] = useState(false);
+
+  const handleDragStart = (e, imageUrl) => {
+    e.dataTransfer.setData('text/plain', imageUrl);
+  };
+
+  const fetchUserImages = useCallback(async () => {
+    try {
+      const images = await ImageService.getMyImages();
+      setUploadedImages(images);
+      if (onImagesLoaded) {
+        onImagesLoaded(images.map(img => img.image_url));
+      }
+    } catch (error) {
+      console.error("Failed to fetch user images:", error);
+    }
+  }, [onImagesLoaded]);
+
+  useEffect(() => {
+    fetchUserImages();
+  }, [fetchUserImages]);
+
+  const handleSectionClick = (section) => {
+    if (activeSection === section && isPanelOpen) {
+      setIsPanelOpen(false);
+      setActiveSection(null);
+    } else {
+      setActiveSection(section);
+      setIsPanelOpen(true);
+      if (section === 'upload') fetchUserImages();
+    }
+  };
+
+  const handleUploadComplete = (uploadResult) => {
+    if (uploadResult.success) {
+      const newImage = { id: uploadResult.imageId, image_url: uploadResult.imageUrl };
+      const newImageList = [newImage, ...uploadedImages];
+      setUploadedImages(newImageList);
+      onImagesLoaded(newImageList.map(img => img.image_url));
+    }
+    setUploadModalOpen(false);
+  };
+
+  const handleRemoveImage = async (imageIdToRemove) => {
+    try {
+      await ImageService.deleteImage(imageIdToRemove);
+      const newImageList = uploadedImages.filter(image => image.id !== imageIdToRemove);
+      setUploadedImages(newImageList);
+      onImagesLoaded(newImageList.map(img => img.image_url));
+    } catch (error) {
+      console.error("Failed to delete image:", error);
+    }
   };
 
   return (
-    <div className="text-center text-slate-600 max-w-2xl mx-auto">
-      <h2 className="text-3xl font-bold text-slate-800">Paso 1: Define tu Juego</h2>
-      <p className="mt-2 text-lg">Describe el tema y la IA generará una lista de preguntas para que elijas.</p>
-      <form onSubmit={handleSubmit} className="mt-8 space-y-6 bg-white p-8 rounded-xl shadow-md border border-slate-200">
-        <div>
-          <label htmlFor="topic" className="block text-left text-sm font-medium text-slate-700">Tema Principal</label>
-          <input
-            type="text"
-            id="topic"
-            value={topic}
-            onChange={(e) => setTopic(e.target.value)}
-            className="mt-1 block w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-            placeholder="Ej: Historia de México"
-            required
-          />
+    <div className="flex h-full bg-white shadow-md">
+      <ImageUploadModal isOpen={isUploadModalOpen} onClose={() => setUploadModalOpen(false)} onUploadComplete={handleUploadComplete} />
+      <div className="w-16 bg-gray-50 border-r border-gray-200 flex flex-col items-center py-4 space-y-3">
+        <Link to="/user-games" className="p-2 rounded-lg text-gray-600 hover:bg-gray-200"><ArrowLeft size={20} /></Link>
+        <SidebarButton icon={<HelpCircle size={24} strokeWidth={activeSection === 'ia' ? 2.5 : 2} />} isActive={activeSection === 'ia'} onClick={() => handleSectionClick('ia')} />
+        <SidebarButton icon={<UploadCloud size={24} strokeWidth={activeSection === 'upload' ? 2.5 : 2} />} isActive={activeSection === 'upload'} onClick={() => handleSectionClick('upload')} />
+      </div>
+      <div className={`transition-all duration-300 ease-in-out ${isPanelOpen && activeSection ? 'w-72' : 'w-0'} overflow-hidden`}>
+        <div className="w-72 p-4 flex flex-col h-full">
+          {activeSection === 'ia' && (
+            <div>
+              <h3 className="font-bold text-lg mb-3">Asistente IA</h3>
+              <div className="text-sm text-gray-600 space-y-2">
+                <p>Usa el formulario de la derecha para definir los requisitos de tu juego.</p>
+                <p>Añadir detalles puede mejorar la calidad del juego generado por la IA.</p>
+              </div>
+            </div>
+          )}
+          {activeSection === 'upload' && (
+            <div className="flex flex-col h-full">
+              <h3 className="font-bold text-lg mb-4">Mis Imágenes</h3>
+              <button onClick={() => setUploadModalOpen(true)} className="w-full flex-shrink-0 flex items-center justify-center gap-2 p-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm font-semibold mb-4">
+                <ImageIcon size={16} />
+                <span className="text-white">Añadir Imagen</span>
+              </button>
+              <p className="text-xs text-gray-500 mb-2">Arrastra una imagen a una pregunta.</p>
+              <div className="overflow-y-auto grid grid-cols-2 pr-2 image-grid-container">
+                {uploadedImages.map((image) => (
+                  <div 
+                    key={image.id} 
+                    className="relative group h-24 rounded-lg bg-gray-100 flex justify-center items-center cursor-grab"
+                    draggable="true"
+                    onDragStart={(e) => handleDragStart(e, image.image_url)}
+                  >
+                    <img src={image.image_url} alt={`preview ${image.id}`} className="object-contain max-h-full max-w-full image-preview-thumbnail" />
+                    <button onClick={() => handleRemoveImage(image.id)} className="absolute top-1 right-1 bg-red-600 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"><X size={12} /></button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        <div className="flex space-x-4">
-          <div className="flex-1">
-            <label htmlFor="language" className="block text-left text-sm font-medium text-slate-700">Idioma</label>
-            <select
-              id="language"
-              value={language}
-              onChange={(e) => setLanguage(e.target.value)}
-              className="mt-1 block w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-            >
-              <option>Español</option>
-              <option>Inglés</option>
-            </select>
-          </div>
-          <div className="flex-1">
-            <label htmlFor="count" className="block text-left text-sm font-medium text-slate-700">Nº de Preguntas</label>
-            <input
-              type="number"
-              id="count"
-              value={count}
-              onChange={(e) => setCount(parseInt(e.target.value, 10))}
-              className="mt-1 block w-full px-4 py-3 bg-slate-50 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-sky-500 focus:border-sky-500 sm:text-sm"
-              min="5"
-              max="20"
-              required
-            />
-          </div>
+      </div>
+    </div>
+  );
+}
+
+const ImageUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [error, setError] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const fileInputRef = useRef();
+
+  if (!isOpen) return null;
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Formato no válido. Solo se permite JPG, PNG o GIF.');
+      return;
+    }
+    setError(null);
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+    setIsUploading(true);
+    setUploadProgress(0);
+    setError(null);
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+    try {
+      const response = await apiClient.post('/images/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
+      });
+      onUploadComplete(response.data);
+      resetState();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Error al subir la imagen.';
+      setError(message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const triggerFileSelect = () => fileInputRef.current.click();
+  const resetState = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setError(null);
+    setIsUploading(false);
+    setUploadProgress(0);
+    if (isOpen) onClose();
+  };
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content">
+        <div className="modal-header"><h3 className="modal-title">Subir Imagen</h3><button onClick={resetState} className="modal-close-button"><X size={24} /></button></div>
+        <div className="modal-body">
+          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/jpeg, image/png, image/gif" style={{ display: 'none' }} />
+          {previewUrl ? (
+            <div className="image-preview-wrapper modal-preview"><img src={previewUrl} alt="Vista previa" className="image-preview" /></div>
+          ) : (
+            <div className="upload-placeholder" onClick={triggerFileSelect}>
+              <UploadCloud size={48} className="text-gray-400" />
+              <p className="mt-2 text-sm text-gray-600">Haz clic para seleccionar una imagen</p>
+              <p className="text-xs text-gray-500">PNG, JPG o GIF (máx. 5MB)</p>
+            </div>
+          )}
+          {error && <div className="upload-error">{error}</div>}
+          {isUploading && (
+            <div className="upload-progress-container">
+              <div className="upload-progress-bar" style={{ width: `${uploadProgress}%` }}></div>
+              <span className="upload-progress-text">Subiendo... {uploadProgress}%</span>
+            </div>
+          )}
         </div>
-        <button type="submit" disabled={isLoading} className="w-full flex justify-center items-center px-6 py-3 border border-transparent rounded-md shadow-sm text-base font-medium text-white bg-sky-600 hover:bg-sky-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-sky-500 disabled:bg-sky-300">
-          {isLoading ? 'Generando...' : 'Generar Preguntas'}
-          <SparklesIcon className="ml-2 h-5 w-5"/>
-        </button>
-      </form>
+        <div className="modal-footer">
+          <button onClick={resetState} className="button-secondary">Cancelar</button>
+          <button onClick={handleUpload} className="button-primary" disabled={!selectedFile || isUploading}>{isUploading ? 'Subiendo...' : 'Subir'}</button>
+        </div>
+      </div>
     </div>
   );
 };
 
-// --- Vista de Selección de Preguntas (Paso 2) ---
-const SelectView = ({ questions, onConfirm, onCancel, isLoading }) => {
-    const [selected, setSelected] = useState(new Set());
+const MainContent = ({ game, isAutoSaving, onSetQuestionImage, isPublic, onStateChange, onTitleChange, styles }) => {
+    const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+    const [isDraggingOver, setIsDraggingOver] = useState(false);
+    const [isEditingTitle, setIsEditingTitle] = useState(false);
+    const [editableTitle, setEditableTitle] = useState('');
 
-    const handleSelect = (index) => {
-        const newSelection = new Set(selected);
-        if (newSelection.has(index)) {
-            newSelection.delete(index);
-        } else {
-            newSelection.add(index);
+    useEffect(() => {
+        if (game) {
+            setEditableTitle(game.title);
         }
-        setSelected(newSelection);
+    }, [game]);
+
+    const handleTitleDoubleClick = () => {
+        setIsEditingTitle(true);
     };
 
-    const handleConfirm = () => {
-        const selectedQuestions = questions.filter((_, index) => selected.has(index));
-        onConfirm(selectedQuestions);
+    const handleTitleChange = (e) => {
+        setEditableTitle(e.target.value);
     };
+
+    const handleTitleBlur = () => {
+        setIsEditingTitle(false);
+        onTitleChange(editableTitle);
+    };
+
+    const handleTitleKeyDown = (e) => {
+        if (e.key === 'Enter') {
+            handleTitleBlur();
+        }
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        setIsDraggingOver(false);
+        const imageUrl = e.dataTransfer.getData('text/plain');
+        if (imageUrl) {
+            onSetQuestionImage(currentQuestionIndex, imageUrl);
+        }
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+    };
+
+    const handleDragEnter = () => {
+        setIsDraggingOver(true);
+    };
+
+    const handleDragLeave = () => {
+        setIsDraggingOver(false);
+    };
+
+    if (!game || !game.questions || game.questions.length === 0) {
+        return (
+            <div className="flex-1 p-8 flex items-center justify-center bg-gray-100">
+                <div className="text-center">
+                    <Bot size={48} className="mx-auto text-gray-400" />
+                    <h2 className="mt-4 text-xl font-semibold text-gray-700">Esperando para generar un juego</h2>
+                    <p className="mt-2 text-sm text-gray-500">Completa el formulario y haz clic en "Generar Juego" para comenzar.</p>
+                </div>
+            </div>
+        );
+    }
+
+    const currentQuestion = game.questions[currentQuestionIndex];
+    const goToNext = () => setCurrentQuestionIndex(prev => Math.min(prev + 1, game.questions.length - 1));
+    const goToPrevious = () => setCurrentQuestionIndex(prev => Math.max(prev - 1, 0));
 
     return (
-        <div className="w-full h-full p-4 sm:p-6 lg:p-8 flex flex-col bg-slate-50 rounded-lg">
-            <div className="max-w-4xl mx-auto w-full">
-                <h2 className="text-3xl font-bold text-slate-800">Paso 2: Selecciona las Preguntas</h2>
-                <p className="mt-1 text-lg text-slate-600">Elige las que quieres incluir en tu juego. ({selected.size} seleccionadas)</p>
+        <div className="flex-1 flex flex-col bg-gray-100">
+            <div className="flex justify-between items-center p-4 bg-white border-b border-gray-200">
+                <div className="flex items-center gap-4">
+                    <div>
+                        {isEditingTitle ? (
+                            <input
+                                type="text"
+                                value={editableTitle}
+                                onChange={handleTitleChange}
+                                onBlur={handleTitleBlur}
+                                onKeyDown={handleTitleKeyDown}
+                                className="text-xl font-bold bg-transparent border-b-2 border-blue-500 outline-none"
+                                autoFocus
+                            />
+                        ) : (
+                            <h1 onDoubleClick={handleTitleDoubleClick} className="text-xl font-bold cursor-pointer">
+                                {game.title}
+                            </h1>
+                        )}
+                    </div>
+                </div>
+                <div className="flex-1 flex justify-center items-center gap-8">
+                    {typeof isPublic !== 'undefined' && (
+                        <GameStateSelector isPublic={isPublic} onStateChange={onStateChange} />
+                    )}
+                    <AutoSaveIndicator isSaving={isAutoSaving} />
+                </div>
+                <button onClick={() => { /* TODO: Implement share functionality */ }} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700">
+                    <Share2 size={16} /> Compartir
+                </button>
             </div>
-            <div className="flex-1 mt-6 overflow-y-auto space-y-4 max-w-4xl mx-auto w-full">
-                {questions.map((q, index) => (
-                    <div key={index} className={`p-4 rounded-lg cursor-pointer transition-all duration-150 ${selected.has(index) ? 'bg-sky-100 border-sky-500' : 'bg-white border-slate-200'} border-2 shadow-sm`} onClick={() => handleSelect(index)}>
-                        <div className="flex items-start">
-                            <input type="checkbox" className="h-5 w-5 rounded text-sky-600 focus:ring-sky-500 mt-1" checked={selected.has(index)} readOnly />
-                            <div className="ml-4">
-                                <p className="font-semibold text-slate-800">{q.question_text}</p>
-                                <ul className="mt-2 text-sm space-y-1">
-                                    {q.answers.map((ans, ansIndex) => (
-                                        <li key={ansIndex} className={ans.is_correct ? 'text-green-600 font-bold' : 'text-slate-500'}>
-                                            {ans.answer_text} {ans.is_correct && '(Correcta)'}
-                                        </li>
-                                    ))}
-                                </ul>
-                            </div>
+            <div className="ai-game-questions-container">
+                <button onClick={goToPrevious} disabled={currentQuestionIndex === 0} className="ai-game-nav-arrow left"><ChevronLeft size={32} /></button>
+                <div className="ai-game-question-card-wrapper">
+                    <div className="ai-game-question-card">
+                        <div className="timer-circle" style={{ backgroundColor: styles.timerBg, color: styles.timerTextColor }}>15</div>
+                        <div className="mb-6">
+                            <p className="text-sm text-gray-500">Pregunta {currentQuestionIndex + 1} de {game.questions.length}</p>
+                            <p className="ai-game-question-text">{currentQuestion.question_text}</p>
+                        </div>
+                        <div
+                            className={`question-image-dropzone ${isDraggingOver ? 'dragging-over' : ''} ${currentQuestion.imageUrl ? 'has-image' : ''}`}
+                            onDrop={handleDrop}
+                            onDragOver={handleDragOver}
+                            onDragEnter={handleDragEnter}
+                            onDragLeave={handleDragLeave}
+                        >
+                            {currentQuestion.imageUrl ? (
+                                <img src={currentQuestion.imageUrl} alt="Pregunta" className="question-image-preview" />
+                            ) : (
+                                <div className="text-center text-gray-500">
+                                    <ImageIcon size={32} className="mx-auto" />
+                                    <p className="mt-2 text-sm">Arrastra una imagen aquí</p>
+                                </div>
+                            )}
+                        </div>
+                        <div className="ai-game-answer-grid">
+                            {currentQuestion.answers.map((ans, ansIndex) => (
+                                <div 
+                                    key={ansIndex} 
+                                    className={`ai-game-answer-button ${ans.is_correct ? 'correct' : 'incorrect'}`}
+                                    style={{ borderRadius: `${styles.buttonRadius}px` }}
+                                >
+                                    {ans.answer_text}
+                                </div>
+                            ))}
                         </div>
                     </div>
-                ))}
-            </div>
-            <div className="max-w-4xl mx-auto w-full mt-6 flex justify-between items-center">
-                <button onClick={onCancel} className="px-6 py-2 bg-slate-300 text-slate-700 font-semibold rounded-lg shadow-md hover:bg-slate-400">
-                    Volver
-                </button>
-                <button onClick={handleConfirm} disabled={isLoading || selected.size === 0} className="px-6 py-2 bg-green-500 text-white font-semibold rounded-lg shadow-md hover:bg-green-600 disabled:bg-green-300 disabled:cursor-not-allowed">
-                    {isLoading ? 'Abriendo Editor...' : `Siguiente: Abrir Editor con ${selected.size} Preguntas`}
-                </button>
+                </div>
+                <button onClick={goToNext} disabled={currentQuestionIndex === game.questions.length - 1} className="ai-game-nav-arrow right"><ChevronRight size={32} /></button>
             </div>
         </div>
     );
 };
 
-// --- Panel Lateral Fijo ---
-const SidePanel = ({ view, onAddAsset, onNewGame }) => { // Añadir onNewGame
-    const [activeTab, setActiveTab] = useState('materiales');
+const AIRequirementsForm = ({ setGeneratedGame }) => {
+  const [topic, setTopic] = useState('');
+  const [language, setLanguage] = useState('Español');
+  const [count, setCount] = useState(5);
+  const [difficulty, setDifficulty] = useState('');
+  const [audience, setAudience] = useState('');
+  const [tone, setTone] = useState('');
+  const [focus, setFocus] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [error, setError] = useState(null);
 
-    const TabButton = ({ name, label, icon }) => (
-        <button
-            onClick={() => setActiveTab(name)}
-            className={`flex-1 flex flex-col items-center p-3 text-xs font-medium transition-colors ${
-                activeTab === name
-                    ? 'bg-sky-100 text-sky-600'
-                    : 'text-slate-500 hover:bg-slate-100'
-            }`}
-        >
-            {icon}
-            <span className="mt-1">{label}</span>
-        </button>
-    );
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!topic.trim()) {
+      setError('Por favor, introduce un tema.');
+      return;
+    }
+    setError(null);
+    setIsLoading(true);
+    setGeneratedGame(null);
+    setProgress(0);
+    const interval = setInterval(() => setProgress(prev => Math.min(prev + 10, 90)), 500);
+    try {
+      const requirements = { topic, language, count, difficulty, audience, tone, focus };
+      const result = await AIGameViewModel.generateQuestions(requirements);
+      clearInterval(interval);
+      setProgress(100);
+      if (result.error) {
+        setError(result.message || 'Error generando las preguntas.');
+        setGeneratedGame(null);
+      } else {
+        const gameData = { title: `Juego sobre ${topic}`, description: `Un juego con ${count} preguntas en ${language}.`, questions: result.questions };
+        setGeneratedGame(gameData);
+      }
+    } catch (err) {
+      clearInterval(interval);
+      setProgress(0);
+      setError(err.message || 'Ocurrió un error inesperado.');
+      setGeneratedGame(null);
+    } finally {
+      setTimeout(() => { setIsLoading(false); setProgress(0); }, 1000);
+    }
+  };
 
-    const handleBackToGames = () => {
-        // Ya no es necesario limpiar sessionStorage aquí, el GameContext lo maneja
-    };
-
-    return (
-        <aside className="w-72 flex flex-col bg-white border-r border-slate-200 shadow-md">
-            {/* Botón de Volver */}
-            <div className="p-3 border-b border-slate-200">
-                <Link to="/user-games" onClick={handleBackToGames} className="w-full flex items-center justify-center p-2 space-x-3 rounded-md bg-green-500 text-white hover:bg-green-600 transition-colors">
-                    <BackIcon />
-                    <span className="font-medium text-sm">Volver a Mis Juegos</span>
-                </Link>
+  return (
+    <div className="w-full h-full flex flex-col">
+      <div className="p-4 border-b border-gray-200"><h3 className="font-bold text-center">Define tu Juego</h3></div>
+      <div className="flex-1 p-6 overflow-y-auto">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div>
+            <label htmlFor="topic" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1"><BookOpen size={16}/>Tema del Juego</label>
+            <input id="topic" type="text" placeholder="Ej: Capitales del mundo" value={topic} onChange={(e) => setTopic(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg text-sm" disabled={isLoading} />
+          </div>
+          <div>
+            <label htmlFor="language" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1"><Languages size={16}/>Idioma</label>
+            <input id="language" type="text" value={language} onChange={(e) => setLanguage(e.target.value)} className="w-full p-2 border border-gray-300 rounded-lg text-sm" disabled={isLoading} />
+          </div>
+          <div>
+            <label htmlFor="count" className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1"><Hash size={16}/>Número de Preguntas</label>
+            <input id="count" type="number" value={count} min="3" max="10" onChange={(e) => setCount(parseInt(e.target.value, 10))} className="w-full p-2 border border-gray-300 rounded-lg text-sm" disabled={isLoading} />
+          </div>
+          <hr/>
+          <div>
+            <label htmlFor="difficulty" className="flex items-center gap-2 text-sm font-medium text-gray-700"> <Award size={16}/> Nivel de Dificultad <span className="text-xs text-gray-500">(Opcional)</span></label>
+            <select id="difficulty" value={difficulty} onChange={(e) => setDifficulty(e.target.value)} className="w-full p-2 mt-1 border border-gray-300 rounded-lg text-sm" disabled={isLoading}>
+              <option value="">Cualquiera</option>
+              <option value="Fácil">Fácil</option>
+              <option value="Intermedio">Intermedio</option>
+              <option value="Difícil">Difícil</option>
+              <option value="Experto">Experto</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="audience" className="flex items-center gap-2 text-sm font-medium text-gray-700"> <Users size={16}/> Público Objetivo <span className="text-xs text-gray-500">(Opcional)</span></label>
+            <input id="audience" type="text" placeholder="Ej: Niños de 10 años" value={audience} onChange={(e) => setAudience(e.target.value)} className="w-full p-2 mt-1 border border-gray-300 rounded-lg text-sm" disabled={isLoading} />
+          </div>
+          <div>
+            <label htmlFor="tone" className="flex items-center gap-2 text-sm font-medium text-gray-700"><Mic size={16}/> Tono del Contenido <span className="text-xs text-gray-500">(Opcional)</span></label>
+            <select id="tone" value={tone} onChange={(e) => setTone(e.target.value)} className="w-full p-2 mt-1 border border-gray-300 rounded-lg text-sm" disabled={isLoading}>
+              <option value="">Por defecto</option>
+              <option value="Humorístico">Humorístico</option>
+              <option value="Académico">Académico</option>
+              <option value="Directo y conciso">Directo y conciso</option>
+              <option value="Creativo">Creativo</option>
+            </select>
+          </div>
+          <div>
+            <label htmlFor="focus" className="flex items-center gap-2 text-sm font-medium text-gray-700"><Brain size={16}/> Enfoque Específico <span className="text-xs text-gray-500">(Opcional)</span></label>
+            <textarea id="focus" placeholder="Ej: Solo sobre planetas rocosos" value={focus} onChange={(e) => setFocus(e.target.value)} className="w-full p-2 mt-1 border border-gray-300 rounded-lg text-sm" rows="3" disabled={isLoading}></textarea>
+          </div>
+          {error && <div className="text-sm text-red-600 bg-red-100 p-3 rounded-lg">{error}</div>}
+          <button type="submit" className="ai-gen-button" disabled={isLoading}>
+            <div className="ai-gen-button-progress" style={{ width: `${progress}%` }}></div>
+            <div className="ai-gen-button-content">
+              {isLoading ? <><Loader size={16} className="animate-spin"/> Generando ({progress}%)</> : <><Wand2 size={16}/>Generar Juego</>}
             </div>
-
-            {/* Botón Nuevo Juego */}
-            {view === 'editor' && (
-                <div className="p-3 border-b border-slate-200">
-                    <button onClick={onNewGame} className="w-full flex items-center justify-center p-2 space-x-3 rounded-md bg-red-500 text-white hover:bg-red-600 transition-colors">
-                        <PlusCircleIcon />
-                        <span className="font-medium text-sm">Nuevo Juego</span>
-                    </button>
-                </div>
-            )}
-
-            {/* Pestañas de Secciones */}
-            <div className="flex border-b border-slate-200">
-                <TabButton name="materiales" label="Materiales" icon={<ImageIcon />} />
-                <TabButton name="subir" label="Subir" icon={<UploadIcon />} />
-                <TabButton name="plantillas" label="Plantillas" icon={<TemplateIcon />} />
-            </div>
-
-            {/* Contenido de las Pestañas */}
-            <div className="flex-1 p-4 overflow-y-auto">
-                {activeTab === 'materiales' && (
-                    view === 'editor'
-                        ? <AssetPalette onAdd={onAddAsset} />
-                        : <div className="text-center text-slate-500 p-4">
-                            <ImageIcon className="mx-auto h-12 w-12 text-slate-300" />
-                            <h3 className="mt-2 font-semibold text-slate-700">Materiales</h3>
-                            <p className="text-sm mt-1">Los materiales y recursos visuales estarán disponibles aquí una vez que entres al editor.</p>
-                          </div>
-                )}
-                {activeTab === 'subir' && (
-                    <div className="text-center text-slate-500 p-4">
-                        <UploadIcon className="mx-auto h-12 w-12 text-slate-300" />
-                        <h3 className="mt-2 font-semibold text-slate-700">Subir Archivos</h3>
-                        <p className="text-sm mt-1">Próximamente podrás subir tus propias imágenes y recursos para usar en el juego.</p>
-                    </div>
-                )}
-                {activeTab === 'plantillas' && (
-                    <div className="text-center text-slate-500 p-4">
-                        <TemplateIcon className="mx-auto h-12 w-12 text-slate-300" />
-                        <h3 className="mt-2 font-semibold text-slate-700">Plantillas</h3>
-                        <p className="text-sm mt-1">En el futuro, aquí encontrarás plantillas de diseño predefinidas para acelerar tu creación.</p>
-                    </div>
-                )}
-            </div>
-        </aside>
-    );
+          </button>
+        </form>
+      </div>
+    </div>
+  );
 };
 
-
-// --- Componente Principal ---
-const CreateGameAIScreenContent = () => { // Renombrado para ser envuelto por GameProvider
-  const navigate = useNavigate();
-  const editorRef = useRef(null);
-  
-  const [view, setView] = useState('define'); // 'define', 'select', 'editor'
+const AIStyleAssistant = ({ setStyles }) => {
+  const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const [gameDefinition, setGameDefinition] = useState(null); // Se mantiene para el paso 1 y 2
-  const [candidateQuestions, setCandidateQuestions] = useState([]); // Se mantiene para el paso 2
-  
-  const [isSaving, setIsSaving] = useState(false);
-  const [selectedObject, setSelectedObject] = useState(null);
-  const [slideElements, setSlideElements] = useState(null); // Estado local para el canvas
-
-  const {
-    currentGame,
-    currentSlideIndex,
-    setCurrentSlideIndex,
-    initializeNewGame,
-    updateSlide,
-    addElementToCurrentSlide,
-    updateElementInCurrentSlide,
-    removeElementFromCurrentSlide,
-    clearGameDraft,
-  } = useGame();
-
-    const slideStatesRef = useRef({}); // Guarda los objetos por slideIndex
-    const fabricCanvasRef = useRef(null);
-
-  // Efecto para sincronizar el estado local del canvas con el del GameContext
-  useEffect(() => {
-    if (currentGame && currentGame.slides && currentGame.slides[currentSlideIndex]) {
-      setSlideElements(currentGame.slides[currentSlideIndex].elements || []);
-    } else {
-      setSlideElements(null);
-    }
-  }, [currentSlideIndex, currentGame]);
-
-  // Efecto para manejar la carga inicial y la persistencia del estado
-  useEffect(() => {
-    if (currentGame && currentGame.slides && currentGame.slides.length > 0) {
-      setView('editor');
-    } else {
-      // Si no hay juego cargado o está vacío, asegurar que la vista sea 'define'
-      setView('define');
-      setGameDefinition(null);
-      setCandidateQuestions([]);
-    }
-  }, [currentGame]); // Dependencia de currentGame
-
-  // Limpiar el borrador al salir de la pantalla o al iniciar un nuevo juego
-  const handleNewGame = useCallback(() => {
-    clearGameDraft();
-    setView('define');
-    setGameDefinition(null);
-    setCandidateQuestions([]);
-    navigate('/create-game-ai'); // Redirigir a la misma ruta para forzar un remount si es necesario
-  }, [clearGameDraft, navigate]);
-
-  const handleGenerateCandidates = async (definition) => {
-    setIsLoading(true);
-    setError(null);
-    setGameDefinition(definition); // Guardar la definición para usarla en handleEnterEditor
-    
-    const result = await AIGameViewModel.generateQuestions(definition);
-
-    if (result && result.questions) {
-      setCandidateQuestions(result.questions);
-      setView('select');
-    } else {
-      setError(result.error || 'No se pudieron generar las preguntas.');
-    }
-    setIsLoading(false);
-  };
-
-  const handleEnterEditor = (selectedQuestions) => {
-      if (!gameDefinition || selectedQuestions.length === 0) {
-          setError('No se seleccionaron preguntas.');
-          return;
-      }
-      // Inicializar el juego en el contexto global
-      initializeNewGame(
-          `Juego sobre ${gameDefinition.topic}`,
-          `Un juego en ${gameDefinition.language} con ${selectedQuestions.length} preguntas.`,
-          selectedQuestions
-      );
-      setView('editor');
-  };
-
-  const handleSaveGame = async () => {
-    if (!currentGame || !currentGame.slides || currentGame.slides.length === 0) {
-      alert('No hay juego para guardar.');
+  const handleGenerate = async () => {
+    if (!description.trim()) {
+      setError('Por favor, describe el estilo que buscas.');
       return;
     }
-
-    setIsSaving(true);
-
-    // 1. Usar el estado local del canvas que es el más actualizado.
-    const currentCanvasState = slideElements;
-
-    // 2. Crear una copia actualizada de las diapositivas para asegurar consistencia.
-    const updatedSlides = currentGame.slides.map((slide, index) => {
-        if (index === currentSlideIndex) {
-            return { ...slide, elements: currentCanvasState };
-        }
-        return slide;
-    });
-
-    // 3. Construir el objeto a guardar con los datos actualizados y consistentes.
-    const gameToSave = {
-        ...currentGame,
-        slides: updatedSlides, // Usar las diapositivas actualizadas
-        game_state: JSON.stringify({ 
-            slides: updatedSlides,
-        }),
-    };
-    
-    // 4. Llamar al ViewModel y manejar el resultado.
-    const result = await AIGameViewModel.saveGame(gameToSave);
-    if (result.success) {
-      alert('¡Juego guardado con éxito!');
-      clearGameDraft(); // Limpiar el borrador de localStorage.
-      navigate('/user-games');
-    } else {
-      alert(`Error al guardar el juego: ${result.message}`);
-    }
-    setIsSaving(false);
-  };
-
-  const handleAddAsset = (assetType, assetData) => {
-    // El VisualEditor debería manejar la adición y luego notificar al contexto
-    // Por ahora, llamamos directamente a addElementToCurrentSlide
-    addElementToCurrentSlide({ type: assetType, ...assetData });
-  };
-
-  const handleToolbarAction = (action, value) => {
-    if (editorRef.current) {
-      // El VisualEditor debe tener una forma de aplicar estilos y notificar al contexto
-      // Esto es un placeholder, la implementación real dependerá de VisualEditor
-      editorRef.current.applyStyle(action, value);
-      // Después de aplicar el estilo, el VisualEditor debería llamar a updateElementInCurrentSlide
-      // con el elemento modificado.
-    }
-  };
-
-  const handleObjectSelected = (object) => {
-    setSelectedObject(object);
-  };
-
-
-  const handleSlideChange = (newIndex) => {
-  if (!editorRef.current) {
-    setCurrentSlideIndex(newIndex);
-    return;
-  }
-
-  // Guardar estado del slide actual (usando método del editor)
-  try {
-    const currentState = editorRef.current.getCanvasState() || [];
-    slideStatesRef.current[currentSlideIndex] = currentState;
-  } catch (e) {
-    console.warn('No se pudo obtener estado actual del canvas:', e);
-  }
-
-  // Cambiar índice (dispara re-render y actualización de props)
-  setCurrentSlideIndex(newIndex);
-
-  // Restaurar slide nuevo (si teníamos estado guardado)
-  const savedState = slideStatesRef.current[newIndex];
-  if (savedState && savedState.length > 0) {
-    // Restaurar con la API del editor
-    editorRef.current.restoreCanvasState(savedState);
-  } else {
-    // No hay estado guardado: limpiar el canvas y dejar que el VisualEditor
-    // re-renderice usando slideData prop (o renderFromSlideData si expusieras uno).
-    editorRef.current.restoreCanvasState([]);
-  }
-};
-
-
-
-
-  const getCurrentSlideData = () => {
-    if (!currentGame || !currentGame.slides || currentGame.slides.length === 0) return null;
-    
-    const currentSlideData = currentGame.slides[currentSlideIndex];
-    return {
-        type: 'question',
-        question: currentSlideData.question,
-        questionIndex: currentSlideIndex,
-    };
-  };
-
-  const renderInitialContent = () => {
-    if (isLoading && view === 'define') {
-        return (
-            <div className="flex flex-col items-center text-slate-500">
-                <SparklesIcon className="h-16 w-16 animate-pulse" />
-                <p className="mt-4 text-lg font-semibold">Generando preguntas...</p>
-            </div>
-        );
-    }
-    
-    if (error) {
-        return (
-            <div className="text-center text-red-500">
-                <h2 className="text-2xl font-semibold">Ocurrió un Error</h2>
-                <p className="mt-2">{error}</p>
-                <button onClick={() => { setError(null); setView('define'); }} className="mt-4 px-4 py-2 bg-sky-500 text-white rounded-md">
-                    Intentar de Nuevo
-                </button>
-            </div>
-        );
-    }
-
-    switch (view) {
-      case 'select':
-        return <SelectView questions={candidateQuestions} onConfirm={handleEnterEditor} onCancel={() => setView('define')} isLoading={isLoading} />;
-      case 'editor':
-        // Si estamos en el editor pero no hay juego cargado (ej. borrador corrupto), volver a definir
-        if (!currentGame || !currentGame.slides || currentGame.slides.length === 0 || slideElements === null) {
-            return <DefineView onGenerate={handleGenerateCandidates} isLoading={isLoading} />;
-        }
-        // Renderizar el editor si hay un juego
-        const totalSlides = currentGame.slides.length;
-        return (
-            <div className="flex-1 flex h-full border border-slate-200 rounded-xl shadow-md bg-white overflow-hidden">
-                <div className="flex-1 flex flex-col h-full">
-                    <EditorToolbar 
-                        onAction={handleToolbarAction} 
-                        selectedObject={selectedObject} 
-                        onSave={handleSaveGame} 
-                        isSaving={isSaving} 
-                        onDelete={removeElementFromCurrentSlide} // Asumiendo que EditorToolbar tiene un botón de borrar
-                    />
-                    <div className="flex-1 h-full bg-slate-200 relative">
-                        <VisualEditor
-                            key={currentSlideIndex} // Usar currentSlideIndex como key para forzar remount si es necesario
-                            ref={editorRef}
-  slideData={getCurrentSlideData()}
-  initialCanvasState={slideElements}
-                            onObjectSelected={handleObjectSelected} 
-                            onCanvasChange={(elements) => {
-                                setSlideElements(elements); // Actualizar estado local para feedback inmediato
-                                updateSlide(currentGame.slides[currentSlideIndex].id, elements); // Actualizar contexto
-                            }} // Guardar cambios del canvas
-                            onUpdateElement={updateElementInCurrentSlide} // Para que VisualEditor notifique cambios a elementos
-                        />
-                        <div className="absolute top-1/2 -translate-y-1/2 w-full flex justify-between px-4 pointer-events-none">
-                            <button 
-                                onClick={() => handleSlideChange(currentSlideIndex - 1)} 
-                                disabled={currentSlideIndex === 0}
-                                className="pointer-events-auto bg-white/50 hover:bg-white rounded-full p-2 shadow-md disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                            >
-                                <ArrowLeftIcon />
-                            </button>
-                            <button 
-                                onClick={() => handleSlideChange(currentSlideIndex + 1)} 
-                                disabled={currentSlideIndex >= totalSlides - 1}
-                                className="pointer-events-auto bg-white/50 hover:bg-white rounded-full p-2 shadow-md disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                            >
-                                <ArrowRightIcon />
-                            </button>
-                        </div>
-                        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-gray-800/70 text-white text-sm px-3 py-1 rounded-full">
-                            Diapositiva {currentSlideIndex + 1} de {totalSlides}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        );
-      case 'define':
-      default:
-        return <DefineView onGenerate={handleGenerateCandidates} isLoading={isLoading} />;
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await AIGameViewModel.generateStyle(description);
+      if (result.error) {
+        setError(result.message || 'No se pudo generar el estilo.');
+      } else {
+        setStyles(prev => ({...prev, ...result}));
+      }
+    } catch (err) {
+      setError(err.message || 'Ocurrió un error inesperado.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="flex h-screen bg-slate-100 font-sans overflow-hidden">
-      <SidePanel view={view} onAddAsset={handleAddAsset} onNewGame={handleNewGame} />
-
-      <main className="flex-1 flex flex-col p-4 lg:p-6 overflow-hidden">
-        {renderInitialContent()}
-      </main>
+    <div className="space-y-3">
+      <h4 className="text-sm font-semibold text-gray-500 flex items-center gap-2"><Wand2 size={14}/> ASISTENTE DE ESTILOS IA</h4>
+      <div className="p-3 bg-indigo-50 border border-indigo-200 rounded-lg">
+        <p className="text-xs text-indigo-700 mb-2">Describe un tema o una emoción y deja que la IA genere una paleta de colores para ti.</p>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Ej: Un tema de naturaleza para niños..."
+          className="w-full p-2 border-gray-300 rounded-lg text-sm"
+          rows="2"
+          disabled={isLoading}
+        />
+        <button
+          onClick={handleGenerate}
+          disabled={isLoading}
+          className="w-full flex items-center justify-center gap-2 mt-2 px-3 py-2 bg-indigo-600 text-white rounded-lg font-semibold text-sm hover:bg-indigo-700 disabled:bg-indigo-400 transition-all"
+        >
+          {isLoading ? <><Loader size={16} className="animate-spin"/> Generando...</> : <>Generar Estilo</>}
+        </button>
+        {error && <div className="text-xs text-red-600 mt-2">{error}</div>}
+      </div>
     </div>
   );
 };
 
-const CreateGameAIScreen = () => (
-  <GameProvider>
-    <CreateGameAIScreenContent />
-  </GameProvider>
-);
+const StyleControlPanel = ({ styles, setStyles }) => {
+  const presets = [
+    { name: 'Claro', containerBg: '#FFFFFF', questionText: '#111827', answerBg: '#F9FAFB', answerTextColor: '#1F2937', timerBg: '#3B82F6', timerTextColor: '#FFFFFF' },
+    { name: 'Oscuro', containerBg: '#1F2937', questionText: '#F9FAFB', answerBg: '#374151', answerTextColor: '#F3F4F6', timerBg: '#FBBF24', timerTextColor: '#1F2937' },
+    { name: 'Océano', containerBg: '#F0F9FF', questionText: '#0C4A6E', answerBg: '#E0F2FE', answerTextColor: '#075985', timerBg: '#10B981', timerTextColor: '#FFFFFF' },
+    { name: 'Bosque', containerBg: '#F0FDF4', questionText: '#14532D', answerBg: '#DCFCE7', answerTextColor: '#166534', timerBg: '#F59E0B', timerTextColor: '#FFFFFF' },
+    { name: 'Atardecer', containerBg: '#FFF7ED', questionText: '#7C2D12', answerBg: '#FFEDD5', answerTextColor: '#9A3412', timerBg: '#EF4444', timerTextColor: '#FFFFFF' },
+    { name: 'Neón', containerBg: '#1A1A1A', questionText: '#E0E0E0', answerBg: '#333333', answerTextColor: '#A7F3D0', timerBg: '#EC4899', timerTextColor: '#1A1A1A' },
+  ];
+
+  const handleColorChange = (key, value) => {
+    setStyles(prev => ({ ...prev, [key]: value }));
+  };
+
+  const ColorInput = ({ label, colorKey }) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <div className="flex items-center gap-2 p-1 border border-gray-200 rounded-lg">
+        <input
+          type="color"
+          value={styles[colorKey]}
+          onChange={(e) => handleColorChange(colorKey, e.target.value)}
+          className="p-0 h-8 w-8 block bg-white border-none rounded-md cursor-pointer"
+        />
+        <input 
+          type="text"
+          value={styles[colorKey]}
+          onChange={(e) => handleColorChange(colorKey, e.target.value)}
+          className="w-full p-1 border-gray-300 rounded-md text-sm font-mono bg-gray-50"
+        />
+      </div>
+    </div>
+  );
+
+  const SliderControl = ({ title, value, onChange, min = 0, max = 24 }) => (
+    <div>
+        <h4 className="text-sm font-semibold text-gray-500 uppercase">{title}</h4>
+        <div className="flex items-center gap-4 mt-2">
+            <input 
+                type="range" 
+                min={min}
+                max={max}
+                value={value}
+                onChange={onChange}
+                className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+            />
+            <span className="text-sm font-medium text-gray-600 w-8 text-center">{value}px</span>
+        </div>
+    </div>
+  );
+
+  return (
+    <div className="w-full h-full flex flex-col">
+      <div className="p-4 border-b border-gray-200 flex items-center justify-center gap-2">
+        <Palette size={20} className="text-gray-600"/>
+        <h3 className="font-bold text-center">Personalizar Diseño</h3>
+      </div>
+      <div className="flex-1 p-6 overflow-y-auto space-y-6">
+        <div className="space-y-4">
+          <h4 className="text-sm font-semibold text-gray-500">COLORES MANUALES</h4>
+          <ColorInput label="Fondo de la Tarjeta" colorKey="containerBg" />
+          <ColorInput label="Texto de la Pregunta" colorKey="questionText" />
+          <ColorInput label="Fondo de Respuestas" colorKey="answerBg" />
+          <ColorInput label="Texto de Respuestas" colorKey="answerTextColor" />
+          <ColorInput label="Fondo del Contador" colorKey="timerBg" />
+          <ColorInput label="Texto del Contador" colorKey="timerTextColor" />
+        </div>
+        <hr />
+        <div className="space-y-4">
+            <SliderControl 
+                title="Redondez de Botones"
+                value={styles.buttonRadius}
+                onChange={(e) => setStyles(prev => ({...prev, buttonRadius: parseInt(e.target.value, 10)}))}
+            />
+        </div>
+        <hr />
+        <AIStyleAssistant setStyles={setStyles} />
+        <hr />
+        <div className="space-y-4">
+          <h4 className="text-sm font-semibold text-gray-500">ESTILOS RECOMENDADOS</h4>
+          <div className="grid grid-cols-3 gap-3">
+            {presets.map(preset => (
+              <div key={preset.name} className="text-center">
+                <button onClick={() => setStyles(prev => ({...prev, ...preset}))} className="w-16 h-16 rounded-full flex items-center justify-center transition-transform hover:scale-105 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500" style={{ background: `linear-gradient(45deg, ${preset.containerBg} 50%, ${preset.answerBg} 50%)`, border: '2px solid #e5e7eb' }}>
+                   <div className="w-4 h-4 rounded-full" style={{backgroundColor: preset.questionText}}></div>
+                </button>
+                <p className="text-xs mt-2 font-medium text-gray-600">{preset.name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const CreateGameAIScreen = () => {
+  const [generatedGame, setGeneratedGame] = useState(null);
+  const [saveError, setSaveError] = useState(null);
+  const [imageUrls, setImageUrls] = useState([]);
+  const [gameId, setGameId] = useState(null); // ID for auto-saving
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
+
+  const [styles, setStyles] = useState({
+    containerBg: '#ffffff',
+    questionText: '#1f2937',
+    answerBg: '#f3f4f6',
+    answerTextColor: '#1f2937',
+    buttonRadius: 8,
+    timerBg: '#EF4444',
+    timerTextColor: '#FFFFFF',
+  });
+
+  // Debounce timer
+  const debounceTimeoutRef = useRef(null);
+
+  const handleAutoSave = useCallback(async (gameData) => {
+    if (!gameData) return;
+    setIsAutoSaving(true);
+    setSaveError(null);
+    try {
+      let result;
+      const dataToSave = { ...gameData, styles, is_public: isPublic };
+      delete dataToSave.isPublic;
+
+      if (gameId) {
+        result = await AIGameViewModel.updateGame(gameId, dataToSave);
+      } else {
+        result = await AIGameViewModel.saveGame(dataToSave, true);
+        if (result.success && result.gameId) {
+          setGameId(result.gameId);
+        }
+      }
+
+      if (!result.success) {
+        setSaveError(result.message || 'Error en el autoguardado.');
+      }
+    } catch (error) {
+      setSaveError(error.message || 'Error de conexión durante el autoguardado.');
+    } finally {
+      setIsAutoSaving(false);
+    }
+  }, [gameId, styles, isPublic]);
+
+  useEffect(() => {
+    if (generatedGame) {
+      if (debounceTimeoutRef.current) {
+        clearTimeout(debounceTimeoutRef.current);
+      }
+      debounceTimeoutRef.current = setTimeout(() => {
+        handleAutoSave(generatedGame);
+      }, 2000); // Auto-save after 2 seconds of inactivity
+    }
+    }, [generatedGame, styles, handleAutoSave]);
+
+  const screenStyle = {
+    '--container-bg': styles.containerBg,
+    '--question-text-color': styles.questionText,
+    '--answer-bg': styles.answerBg,
+    '--answer-text-color': styles.answerTextColor,
+  };
+
+  const handleSetQuestionImage = (questionIndex, imageUrl) => {
+    if (!generatedGame) return;
+
+    const updatedQuestions = [...generatedGame.questions];
+    updatedQuestions[questionIndex] = {
+      ...updatedQuestions[questionIndex],
+      imageUrl: imageUrl,
+    };
+
+    setGeneratedGame({
+      ...generatedGame,
+      questions: updatedQuestions,
+    });
+  };
+
+  const handleTitleChange = (newTitle) => {
+    if (!generatedGame) return;
+    setGeneratedGame({
+        ...generatedGame,
+        title: newTitle,
+    });
+  };
+
+  return (
+    <div className="flex h-screen bg-white" style={screenStyle}>
+      <NewSidebar onImagesLoaded={setImageUrls} />
+      <div className="flex-1 flex flex-col">
+        <MainContent 
+          game={generatedGame} 
+          isAutoSaving={isAutoSaving}
+          onSetQuestionImage={handleSetQuestionImage}
+          isPublic={isPublic}
+          onStateChange={setIsPublic}
+          onTitleChange={handleTitleChange}
+          styles={styles}
+        />
+        {saveError && <div className="p-4 text-center text-sm text-red-600 bg-red-100">{saveError}</div>}
+      </div>
+      <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
+        {generatedGame ? (
+          <StyleControlPanel styles={styles} setStyles={setStyles} />
+        ) : (
+          <AIRequirementsForm setGeneratedGame={setGeneratedGame} />
+        )}
+      </div>
+    </div>
+  );
+};
 
 export default CreateGameAIScreen;

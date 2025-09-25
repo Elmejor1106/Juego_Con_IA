@@ -40,19 +40,33 @@ const AIGameViewModel = {
    * @param {Object} gameData - The game data object (title, description, questions).
    * @returns {Promise<Object>} - The newly created game from the backend or an error object.
    */
-  saveGame: async (gameData) => {
+  saveGame: async (gameData, isPartial = false) => {
     try {
-      // We need to add template_id and is_public to the gameData
-      // I'll assume template_id 1 (Cuestionario) and is_public false by default.
       const fullGameData = {
         ...gameData,
-        template_id: 1, // 'Cuestionario'
-        is_public: false,
+        template_id: 1, // Default to 'Cuestionario' template
+        game_type: 'ai',
+        is_public: !isPartial,
       };
       const newGame = await GameService.createGame(fullGameData);
-      return { success: true, game: newGame };
+      return { success: true, gameId: newGame.id };
     } catch (error) {
       return { success: false, message: error.message || 'Failed to save the game.' };
+    }
+  },
+
+  /**
+   * Updates an existing game in the database.
+   * @param {string} gameId - The ID of the game to update.
+   * @param {Object} gameData - The game data to update.
+   * @returns {Promise<Object>} - A success or error object.
+   */
+  updateGame: async (gameId, gameData) => {
+    try {
+      await GameService.updateGame(gameId, gameData);
+      return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message || 'Failed to update the game.' };
     }
   },
 
@@ -68,6 +82,19 @@ const AIGameViewModel = {
       return { error: true, message: result.message };
     }
     return result.data; // Should be { questions: [...] }
+  },
+
+  /**
+   * Calls the AI service to generate a color palette based on a description.
+   * @param {string} description - The text description of the desired theme.
+   * @returns {Promise<Object>} - An object containing the generated style object or an error.
+   */
+  generateStyle: async (description) => {
+    const result = await aiApi.generateStyleFromDescription(description);
+    if (result.error) {
+      return { error: true, message: result.message };
+    }
+    return result.data; // Should be { containerBg: ..., etc. }
   }
 };
 

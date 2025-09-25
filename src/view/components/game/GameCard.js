@@ -14,7 +14,7 @@ const GameCard = ({ game, onEdit, onDelete }) => {
   });
 
   const handlePlay = () => {
-    navigate(`/play/${id}`);
+    navigate(`/game-lobby/${id}`);
   };
 
   return (

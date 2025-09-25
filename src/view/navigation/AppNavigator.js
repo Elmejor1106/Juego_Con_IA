@@ -11,6 +11,7 @@ import GameEditorScreen from '../screens/user/GameEditorScreen';
 import CreateGameAIScreen from '../screens/user/CreateGameAIScreen';
 import PublicGamesScreen from '../screens/user/PublicGamesScreen';
 import GamePlayerScreen from '../screens/user/GamePlayerScreen';
+import GamePlayerLobbyScreen from '../screens/user/GamePlayerLobbyScreen';
 
 import { useAuth } from '../../context/AuthContext';
 import MainLayout from '../components/common/MainLayout';
@@ -31,9 +32,7 @@ const AppNavigator = () => {
             <Route path="/user-games" element={<UserGamesScreen />} />
             <Route path="/create-game" element={<CreateGameScreen />} />
             <Route path="/create-game-editor/:templateId" element={<GameEditorScreen />} />
-            <Route path="/edit-game/:gameId" element={<GameEditorScreen />} />
             <Route path="/public-games" element={<PublicGamesScreen />} />
-            <Route path="/play/:gameId" element={<GamePlayerScreen />} />
             {/* Rutas protegidas para admin */}
             <Route path="/admin" element={<AdminNavigator />}>
               <Route path="dashboard" element={<AdminDashboardScreen />} />
@@ -41,7 +40,11 @@ const AppNavigator = () => {
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
+          {/* Rutas independientes de pantalla completa */}
           <Route path="/create-ai-game" element={<CreateGameAIScreen />} />
+          <Route path="/edit-game/:gameId" element={<GameEditorScreen />} />
+          <Route path="/game-lobby/:gameId" element={<GamePlayerLobbyScreen />} />
+          <Route path="/play/:gameId" element={<GamePlayerScreen />} />
         </>
       ) : (
         <Route path="/*" element={<AuthNavigator />} />

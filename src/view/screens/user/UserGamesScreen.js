@@ -23,6 +23,16 @@ const UserGamesScreen = () => {
 
   useEffect(() => {
     loadGames();
+
+    const handleFocus = () => {
+      loadGames();
+    };
+
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+    };
   }, [loadGames]);
 
   const handleEditGame = (gameId) => {

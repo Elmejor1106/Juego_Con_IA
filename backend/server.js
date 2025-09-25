@@ -2,7 +2,9 @@ console.log('--- Loading server.js ---');
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
+const path = require('path'); // <-- MOVIDO AQUÍ
 const pool = require('./config/db');
+const imagesRoutes = require('./routes/images');
 
 const app = express();
 
@@ -21,15 +23,18 @@ app.get('/', (req, res) => {
   res.send('Servidor del backend funcionando!');
 });
 
+// Servir imágenes subidas de forma estática
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 // Definir Rutas de API
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/games', require('./routes/games'));
 app.use('/api/ai', require('./routes/ai'));
 app.use('/api/users', require('./routes/users'));
 app.use('/api/stats', require('./routes/stats'));
+app.use('/api/images', imagesRoutes);
 
 // Servir archivos estáticos del frontend (si aplica)
-const path = require('path');
 app.use(express.static(path.join(__dirname, '../public')));
 
 // Redirección para SPA: cualquier ruta que no sea API devuelve index.html
