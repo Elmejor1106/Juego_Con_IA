@@ -1,69 +1,40 @@
+// backend/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
-const pool = require('../config/db');
 
-const authMiddleware = async (req, res, next) => {
-  const authHeader = req.header('Authorization');
+const authMiddleware = (req, res, next) => {
+  const token = req.header('Authorization');
 
-  if (!authHeader) {
+  if (!token) {
     return res.status(401).json({ msg: 'No hay token, autorización denegada' });
   }
 
-  const tokenParts = authHeader.split(' ');
-  if (tokenParts.length !== 2 || tokenParts[0] !== 'Bearer') {
-    return res.status(401).json({ msg: 'Token mal formado' });
-  }
-
-  const token = tokenParts[1];
-
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    
-    // En lugar de confiar en el token, obtenemos los datos frescos de la BD
-    // Agregar protección contra problemas de concurrencia
-    const connection = await pool.getConnection();
-    try {
-      await connection.beginTransaction();
-      
-      const [rows] = await connection.query(
-        'SELECT id, username, role, status FROM users WHERE id = ? FOR UPDATE', 
-        [decoded.user.id]
-      );
-      const user = rows[0];
-
-      await connection.commit();
-      
-      if (!user) {
-        return res.status(401).json({ msg: 'Usuario no encontrado.' });
-      }
-
-      if (user.status !== 'active') {
-        return res.status(403).json({ msg: 'Tu cuenta está inactiva. Contacta al administrador.' });
-      }
-
-      // Adjuntamos el usuario fresco (con id, role, status, username) al request
-      req.user = user;
-      next();
-
-    } catch (dbError) {
-      await connection.rollback();
-      throw dbError;
-    } finally {
-      connection.release();
-    }
-
+    const decoded = jwt.verify(token.replace('Bearer ', ''), process.env.JWT_SECRET);
+    req.user = decoded;
+    next();
   } catch (err) {
-    console.error('Error en authMiddleware:', err);
-    res.status(401).json({ msg: 'El token no es válido' });
+    return res.status(403).json({ msg: 'Token no es válido' });
   }
 };
 
-const isAdmin = (req, res, next) => {
-    // Este middleware debe correr DESPUÉS de authMiddleware
-    if (req.user && req.user.role === 'admin') {
-        next();
-    } else {
-        res.status(403).json({ msg: 'Acceso denegado. Se requiere rol de administrador.' });
+const authenticateToken = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+  
+  if (!token) {
+    res.status(401);
+    return res.json({ msg: 'No autorizado' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      res.status(403);
+      return res.json({ msg: 'Token inválido' });
     }
+    req.user = user;
+    next();
+  });
 };
 
-module.exports = { authMiddleware, isAdmin };
+// 👇 EXPORTA ASÍ
+module.exports = { authMiddleware, authenticateToken };
