@@ -7,9 +7,12 @@ const UserViewModel = {
    */
   fetchDashboardStats: async () => {
     try {
-      const stats = await StatsService.getStats();
+      console.log('🔍 [STATS DEBUG] UserViewModel: Llamando StatsService.getPersonalStats()');
+      const stats = await StatsService.getPersonalStats();
+      console.log('🔍 [STATS DEBUG] UserViewModel: Stats personales recibidas:', stats);
       return { success: true, data: stats };
     } catch (error) {
+      console.error('🔍 [STATS DEBUG] UserViewModel: Error:', error.message);
       return { success: false, message: error.message };
     }
   },

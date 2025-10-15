@@ -11,7 +11,11 @@ import GameEditorScreen from '../screens/user/GameEditorScreen';
 import CreateGameAIScreen from '../screens/user/CreateGameAIScreen';
 import PublicGamesScreen from '../screens/user/PublicGamesScreen';
 import GamePlayerScreen from '../screens/user/GamePlayerScreen';
-import GamePlayerLobbyScreen from '../screens/user/GamePlayerLobbyScreen';
+import GameLobbyScreen from '../screens/user/GameLobbyScreen';
+import JoinGameScreen from '../screens/user/JoinGameScreen';
+import MultiplayerGameScreen from '../screens/user/MultiplayerGameScreen';
+import MultiplayerGameDebug from '../screens/user/MultiplayerGameDebug';
+import SharedGameScreen from '../screens/user/SharedGameScreen';
 
 import { useAuth } from '../../context/AuthContext';
 import MainLayout from '../components/common/MainLayout';
@@ -19,7 +23,13 @@ import MainLayout from '../components/common/MainLayout';
 const AppNavigator = () => {
   const { isAuthenticated, loading } = useAuth();
 
+  console.log('🧭 [AppNavigator] === ESTADO DE AUTENTICACIÓN ===');
+  console.log('🧭 [AppNavigator] IsAuthenticated:', isAuthenticated);
+  console.log('🧭 [AppNavigator] Loading:', loading);
+  console.log('🧭 [AppNavigator] Ruta actual:', window.location.pathname);
+
   if (loading) {
+    console.log('🧭 [AppNavigator] Mostrando pantalla de carga...');
     return <div className="flex justify-center items-center h-screen">Cargando...</div>;
   }
 
@@ -27,6 +37,7 @@ const AppNavigator = () => {
     <Routes>
       {isAuthenticated ? (
         <>
+          {console.log('🧭 [AppNavigator] Renderizando rutas AUTENTICADAS')}
           <Route element={<MainLayout />}>
             <Route path="/" element={<HomeScreen />} />
             <Route path="/user-games" element={<UserGamesScreen />} />
@@ -43,11 +54,21 @@ const AppNavigator = () => {
           {/* Rutas independientes de pantalla completa */}
           <Route path="/create-ai-game" element={<CreateGameAIScreen />} />
           <Route path="/edit-game/:gameId" element={<GameEditorScreen />} />
-          <Route path="/game-lobby/:gameId" element={<GamePlayerLobbyScreen />} />
           <Route path="/play/:gameId" element={<GamePlayerScreen />} />
+          <Route path="/shared/:token" element={<SharedGameScreen />} />
+          {/* Rutas multijugador - SIEMPRE accesibles */}
+          <Route path="/multiplayer-lobby/:gameId" element={<GameLobbyScreen />} />
+          <Route path="/multiplayer-game/:gameId/:lobbyCode" element={<MultiplayerGameScreen />} />
         </>
       ) : (
-        <Route path="/*" element={<AuthNavigator />} />
+        <>
+          {console.log('🧭 [AppNavigator] Renderizando rutas NO AUTENTICADAS')}
+          {/* Rutas públicas (sin autenticación) */}
+          <Route path="/join-game/:gameId/:lobbyCode" element={<JoinGameScreen />} />
+          {/* Ruta de juego multijugador - accesible sin autenticación */}
+          <Route path="/multiplayer-game/:gameId/:lobbyCode" element={<MultiplayerGameScreen />} />
+          <Route path="/*" element={<AuthNavigator />} />
+        </>
       )}
     </Routes>
   );

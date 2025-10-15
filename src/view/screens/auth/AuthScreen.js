@@ -24,6 +24,18 @@ const AuthScreen = () => {
 
   return (
     <div className={getScreenClass()}>
+      {/* Floating decorative icons */}
+      <div className="floating-icons">
+        <div className="floating-icon">💼</div>
+        <div className="floating-icon">📊</div>
+        <div className="floating-icon">⚙️</div>
+        <div className="floating-icon">📝</div>
+        <div className="floating-icon">�</div>
+        <div className="floating-icon">💡</div>
+        <div className="floating-icon">📱</div>
+        <div className="floating-icon">🔧</div>
+      </div>
+      
       <div className="auth-container">
         <div className="form-container">
           {/* 

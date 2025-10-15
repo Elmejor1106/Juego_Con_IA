@@ -1,0 +1,91 @@
+/* LoginScreen specific styles */
+.login-form h2 {
+  position: relative;
+  color: #1e293b;
+  margin-top: 20px;
+}
+
+.login-form h2::before {
+  content: '🔐';
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  top: -45px;
+  font-size: 32px;
+  opacity: 0.8;
+  animation: bounce-icon 2s ease-in-out infinite;
+}
+
+@keyframes bounce-icon {
+  0%, 100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+/* Welcome text styling */
+.login-form::before {
+  content: 'Acceso Profesional';
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 14px;
+  color: #3b82f6;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  opacity: 0.8;
+}
+
+/* Enhanced login button */
+.login-form button {
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  position: relative;
+  overflow: hidden;
+}
+
+.login-form button::after {
+  content: '→';
+  position: absolute;
+  right: 25px;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: all 0.3s ease;
+}
+
+.login-form button:hover::after {
+  opacity: 1;
+  right: 20px;
+}
+
+/* Special styling for forgot password link */
+.login-form p:first-of-type a {
+  color: #f59e0b;
+  font-size: 13px;
+  position: relative;
+}
+
+.login-form p:first-of-type a::before {
+  content: '🔑';
+  margin-right: 5px;
+  font-size: 12px;
+}
+
+/* Register link enhancement */
+.login-form p:last-of-type {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 25px;
+  margin-top: 30px;
+}
+
+.login-form p:last-of-type a {
+  background: linear-gradient(135deg, #10b981, #059669);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: 700;
+}

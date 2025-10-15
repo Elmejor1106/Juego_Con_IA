@@ -37,6 +37,52 @@ const SystemReportsScreen = () => {
     }
   };
 
+  const handleDownloadReport = async () => {
+    try {
+      const result = await ReportsViewModel.downloadUserReport();
+      if (result.success) {
+        // Crear un Blob con la respuesta del PDF
+        const blob = new Blob([result.data], { type: 'application/pdf' });
+        // Crear una URL para el Blob
+        const url = window.URL.createObjectURL(blob);
+        // Crear un enlace temporal para iniciar la descarga
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'reporte_usuarios.pdf');
+        document.body.appendChild(link);
+        link.click();
+        // Limpiar
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        alert(`Error al generar el reporte: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`Error inesperado al descargar el reporte: ${error.message}`);
+    }
+  };
+
+  const handleDownloadImageReport = async () => {
+    try {
+      const result = await ReportsViewModel.downloadImageReport();
+      if (result.success) {
+        const blob = new Blob([result.data], { type: 'application/pdf' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', 'reporte_actividad_imagenes.pdf');
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        alert(`Error al generar el reporte de imágenes: ${result.error}`);
+      }
+    } catch (error) {
+      alert(`Error inesperado al descargar el reporte de imágenes: ${error.message}`);
+    }
+  };
+
   const renderContent = () => {
     if (isLoading) {
       return <p>Cargando datos del sistema...</p>;
@@ -83,7 +129,21 @@ const SystemReportsScreen = () => {
   };
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="container mx-auto p-4 space-y-8">
+      <Card>
+        <h1 className="text-2xl font-bold mb-6 text-gray-800">Generación de Informes</h1>
+        <div className="flex flex-col space-y-4">
+          <div className="flex items-center space-x-4">
+            <p>Descargar informe completo de usuarios del sistema:</p>
+            <Button onClick={handleDownloadReport}>Descargar PDF de Usuarios</Button>
+          </div>
+          <div className="flex items-center space-x-4">
+            <p>Descargar informe de actividad de imágenes:</p>
+            <Button onClick={handleDownloadImageReport} className="bg-indigo-500 hover:bg-indigo-600 text-white shadow-md hover:shadow-lg">Generar Reporte de Imágenes</Button>
+          </div>
+        </div>
+      </Card>
+
       <Card>
         <h1 className="text-2xl font-bold mb-6 text-gray-800">Panel de Administración de Juegos</h1>
         {renderContent()}

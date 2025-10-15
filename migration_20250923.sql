@@ -1,1 +1,0 @@
-ALTER TABLE game_questions ADD COLUMN image_url VARCHAR(255) DEFAULT NULL;

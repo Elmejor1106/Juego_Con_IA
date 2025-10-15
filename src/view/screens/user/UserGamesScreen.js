@@ -63,11 +63,6 @@ const UserGamesScreen = () => {
             </p>
           </div>
           <div className="flex gap-4 mt-4 sm:mt-0">
-            <Link to="/create-game">
-              <Button className="bg-sky-500 hover:bg-sky-600 text-white shadow-md hover:shadow-lg">
-                Crear Nuevo Juego
-              </Button>
-            </Link>
             <Link to="/create-ai-game">
               <Button className="bg-teal-500 hover:bg-teal-600 text-white shadow-md hover:shadow-lg ">
                 Crear Juego con IA

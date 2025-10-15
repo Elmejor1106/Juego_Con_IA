@@ -20,6 +20,16 @@ const AuthService = {
     }
   },
 
+  // AÑADIDO: Verificar correo electrónico
+  verifyEmail: async (token) => {
+    try {
+      const response = await apiClient.get(`/auth/verify-email/${token}`);
+      return response.data; // Devuelve { msg: "...", verified: true }
+    } catch (error) {
+      throw new Error(error.response?.data?.msg || 'Error al verificar el correo');
+    }
+  },
+
   // AÑADIDO: Solicitar reseteo de contraseña
   requestPasswordReset: async (email) => {
     try {
@@ -37,6 +47,16 @@ const AuthService = {
       return response.data; // Devuelve { msg: "..." }
     } catch (error) {
       throw new Error(error.response?.data?.msg || 'Error al resetear la contraseña');
+    }
+  },
+
+  // AÑADIDO: Renovar token antes de que expire
+  refreshToken: async () => {
+    try {
+      const response = await apiClient.post('/auth/refresh');
+      return response.data; // Devuelve { token: "..." }
+    } catch (error) {
+      throw new Error(error.response?.data?.msg || 'Error al renovar el token');
     }
   },
 };

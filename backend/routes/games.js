@@ -75,13 +75,32 @@ router.get('/templates', authMiddleware, async (req, res) => {
 // @access  Private
 router.get('/my-games', authMiddleware, async (req, res) => {
   try {
+    // Obtener juegos propios y colaboraciones en una sola consulta
     const [games] = await pool.query(
-      `SELECT g.id, g.title, g.description, g.is_public, g.created_at, t.name as template_name 
+      `SELECT 
+        g.id, 
+        g.title, 
+        g.description, 
+        g.is_public, 
+        g.created_at, 
+        t.name as template_name,
+        CASE 
+          WHEN g.user_id = ? THEN 'owner'
+          WHEN gc.user_id IS NOT NULL THEN 'collaborator'
+          ELSE 'owner'
+        END as role,
+        CASE 
+          WHEN g.user_id = ? THEN NULL
+          ELSE u.username
+        END as owner_name
        FROM games g 
        JOIN game_templates t ON g.template_id = t.id 
-       WHERE g.user_id = ? 
+       LEFT JOIN game_collaborators gc ON g.id = gc.game_id AND gc.user_id = ?
+       LEFT JOIN users u ON g.user_id = u.id
+       WHERE g.user_id = ? OR gc.user_id = ?
+       GROUP BY g.id
        ORDER BY g.created_at DESC`,
-      [req.user.id]
+      [req.user.id, req.user.id, req.user.id, req.user.id, req.user.id]
     );
     res.json(games);
   } catch (err) {
@@ -114,7 +133,7 @@ router.get('/public', async (req, res) => {
 // @desc    Crear un nuevo juego a partir de una plantilla
 // @access  Private
 router.post('/', authMiddleware, async (req, res) => {
-  const { title, description, template_id, is_public, questions, styles } = req.body;
+  const { title, description, template_id, is_public, questions, styles, layout } = req.body;
   const user_id = req.user.id;
 
   if (!title || !template_id) {
@@ -133,6 +152,8 @@ router.post('/', authMiddleware, async (req, res) => {
       description,
       is_public: is_public || false,
       styles: styles ? JSON.stringify(styles) : null,
+      // Store layout as a JSON string always so the DB CHECK (json_valid) accepts it
+      layout: layout ? JSON.stringify(layout) : null,
     };
 
     const [result] = await connection.query('INSERT INTO games SET ?', newGame);
@@ -146,16 +167,18 @@ router.post('/', authMiddleware, async (req, res) => {
           order: q.order,
           image_url: q.imageUrl || null,
         };
+            console.log('Inserting question (POST) into DB:', newQuestion);
         const [questionResult] = await connection.query('INSERT INTO game_questions SET ?', newQuestion);
         const questionId = questionResult.insertId;
+            console.log('Inserted question (POST) id:', questionId, 'image_url:', newQuestion.image_url);
 
         if (q.answers && Array.isArray(q.answers)) {
-          for (const a of q.answers) {
+          for (const [ansIndex, a] of q.answers.entries()) {
             const newAnswer = {
               question_id: questionId,
               answer_text: a.answer_text,
-              is_correct: a.is_correct,
-              order: a.order,
+              is_correct: a.is_correct || false,
+              order: a.order !== undefined && a.order !== null ? a.order : ansIndex,
             };
             await connection.query('INSERT INTO game_answers SET ?', newAnswer);
           }
@@ -165,7 +188,7 @@ router.post('/', authMiddleware, async (req, res) => {
 
     await connection.commit();
 
-    const [gameCreated] = await connection.query('SELECT * FROM games WHERE id = ?', [gameId]);
+  const [gameCreated] = await connection.query('SELECT * FROM games WHERE id = ?', [gameId]);
 
     res.status(201).json(gameCreated[0]);
 
@@ -206,7 +229,7 @@ router.get('/:id', authMiddleware, async (req, res) => {
     const gameId = req.params.id;
 
     // 1. Obtener los detalles del juego
-    const [gameResult] = await pool.query('SELECT id, title, description, template_id, styles, is_public FROM games WHERE id = ?', [gameId]);
+    const [gameResult] = await pool.query('SELECT id, title, description, template_id, styles, layout, is_public FROM games WHERE id = ?', [gameId]);
 
     if (gameResult.length === 0) {
       return res.status(404).json({ msg: 'Juego no encontrado' });
@@ -224,6 +247,24 @@ router.get('/:id', authMiddleware, async (req, res) => {
 
     game.questions = questions;
 
+    // Try to parse styles and layout JSON if stored as strings
+    try {
+      if (game.styles && typeof game.styles === 'string') {
+        try { game.styles = JSON.parse(game.styles); } catch (e) { /* keep as string */ }
+      }
+      if (game.layout && typeof game.layout === 'string') {
+        // If the stored layout is a JSON object string, parse it; otherwise keep as string key
+        try {
+          const parsed = JSON.parse(game.layout);
+          game.layout = parsed;
+        } catch (e) {
+          // keep as simple string key
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to parse styles/layout:', err);
+    }
+
     res.json(game);
 
   } catch (err) {
@@ -237,7 +278,8 @@ router.get('/:id', authMiddleware, async (req, res) => {
 // @access  Private
 router.put('/:id', authMiddleware, async (req, res) => {
   const gameId = req.params.id;
-  const { title, description, is_public, questions, styles } = req.body;
+  const { title, description, is_public, questions, styles, layout } = req.body;
+  console.log('--- PUT /api/games/:id body ---', req.body);
   const userId = req.user.id;
 
   const connection = await pool.getConnection();
@@ -259,8 +301,8 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
     // Actualizar detalles del juego
     await connection.query(
-      'UPDATE games SET title = ?, description = ?, is_public = ?, styles = ? WHERE id = ?',
-      [title, description, is_public, styles ? JSON.stringify(styles) : null, gameId]
+      'UPDATE games SET title = ?, description = ?, is_public = ?, styles = ?, layout = ? WHERE id = ?',
+      [title, description, is_public, styles ? JSON.stringify(styles) : null, layout ? JSON.stringify(layout) : null, gameId]
     );
 
     // Eliminar preguntas y respuestas existentes para reinsertar (simplificado)
@@ -276,16 +318,16 @@ router.put('/:id', authMiddleware, async (req, res) => {
           order: q.order,
           image_url: q.imageUrl || null
         };
+        console.log('Inserting question (PUT) into DB:', newQuestion);
         const [questionResult] = await connection.query('INSERT INTO game_questions SET ?', newQuestion);
         const questionId = questionResult.insertId;
-
         if (q.answers && Array.isArray(q.answers)) {
-          for (const a of q.answers) {
+          for (const [ansIndex, a] of q.answers.entries()) {
             const newAnswer = {
               question_id: questionId,
               answer_text: a.answer_text,
-              is_correct: a.is_correct,
-              order: a.order,
+              is_correct: a.is_correct || false,
+              order: a.order !== undefined && a.order !== null ? a.order : ansIndex,
             };
             await connection.query('INSERT INTO game_answers SET ?', newAnswer);
           }
@@ -302,6 +344,237 @@ router.put('/:id', authMiddleware, async (req, res) => {
     res.status(500).send('Error del Servidor');
   } finally {
     connection.release();
+  }
+});
+
+// @route   GET api/games/public/:id
+// @desc    Obtener un juego sin autenticación (para multijugador)
+// @access  Public
+router.get('/public/:id', async (req, res) => {
+  const gameId = req.params.id;
+  console.log(`🔓 [Public Game] Solicitando juego ${gameId} sin autenticación`);
+  
+  try {
+    // Obtener información básica del juego
+    const [gameRows] = await pool.query(`
+      SELECT g.*, t.name as template_name
+      FROM games g
+      LEFT JOIN game_templates t ON g.template_id = t.id
+      WHERE g.id = ?
+    `, [gameId]);
+
+    if (gameRows.length === 0) {
+      console.log(`❌ [Public Game] Juego ${gameId} no encontrado`);
+      return res.status(404).json({ message: 'Juego no encontrado' });
+    }
+
+    const game = gameRows[0];
+    console.log(`✅ [Public Game] Juego encontrado: ${game.title}`);
+
+    // Obtener preguntas y respuestas
+    const [questionsRows] = await pool.query(`
+      SELECT q.*, GROUP_CONCAT(DISTINCT a.answer_text ORDER BY a.id SEPARATOR '|') as options,
+             GROUP_CONCAT(DISTINCT CASE WHEN a.is_correct = 1 THEN a.answer_text END) as correct_answer_text
+      FROM game_questions q
+      LEFT JOIN game_answers a ON q.id = a.question_id
+      WHERE q.game_id = ?
+      GROUP BY q.id
+      ORDER BY q.id
+    `, [gameId]);
+
+    // Formatear las preguntas para el frontend
+    const questions = questionsRows.map((q, index) => {
+      const options = q.options ? q.options.split('|') : [];
+      const correctAnswerText = q.correct_answer_text;
+      const correct_answer = options.indexOf(correctAnswerText);
+      
+      return {
+        id: q.id,
+        question: q.question_text,
+        options: options,
+        correct_answer: correct_answer >= 0 ? correct_answer : 0,
+        image_url: q.image_url
+      };
+    });
+
+    const gameData = {
+      id: game.id,
+      title: game.title,
+      description: game.description,
+      questions: questions,
+      template: { name: game.template_name || 'Juego Multijugador' },
+      styles: game.styles ? JSON.parse(game.styles) : {},
+      layout: game.layout ? JSON.parse(game.layout) : {}
+    };
+
+    console.log(`📤 [Public Game] Enviando ${questions.length} preguntas`);
+    res.json(gameData);
+
+  } catch (err) {
+    console.error('❌ [Public Game] Error:', err);
+    res.status(500).json({ message: 'Error del servidor' });
+  }
+});
+
+// === FUNCIONALIDAD DE COMPARTIR JUEGOS ===
+
+// @route   POST api/games/:id/share
+// @desc    Crear enlace para compartir un juego (ver o ver/editar)
+// @access  Private (solo el dueño del juego)
+router.post('/:id/share', authMiddleware, async (req, res) => {
+  const gameId = req.params.id;
+  const userId = req.user.id;
+  const { permissionLevel } = req.body;
+
+  // Validar permissionLevel
+  if (!permissionLevel || !['view', 'edit'].includes(permissionLevel)) {
+    return res.status(400).json({ msg: 'Nivel de permiso inválido. Debe ser "view" o "edit"' });
+  }
+
+  try {
+    // Verificar que el usuario es el dueño del juego
+    const [gameRows] = await pool.query('SELECT user_id FROM games WHERE id = ?', [gameId]);
+    
+    if (gameRows.length === 0) {
+      return res.status(404).json({ msg: 'Juego no encontrado' });
+    }
+    
+    if (gameRows[0].user_id !== userId) {
+      return res.status(403).json({ msg: 'Solo el dueño del juego puede compartirlo' });
+    }
+
+    // Verificar si ya existe un enlace compartido para este juego con el mismo permiso
+    const [existingShare] = await pool.query(
+      'SELECT share_token FROM game_shares WHERE game_id = ? AND owner_id = ? AND permission_level = ?', 
+      [gameId, userId, permissionLevel]
+    );
+
+    let shareToken;
+    
+    if (existingShare.length > 0) {
+      // Usar el token existente
+      shareToken = existingShare[0].share_token;
+    } else {
+      // Generar nuevo token único
+      shareToken = require('crypto').randomBytes(32).toString('hex');
+      
+      // Insertar nuevo enlace compartido
+      await pool.query(
+        'INSERT INTO game_shares (game_id, owner_id, share_token, permission_level) VALUES (?, ?, ?, ?)',
+        [gameId, userId, shareToken, permissionLevel]
+      );
+    }
+
+    // Construir URL completa
+    const shareUrl = `${req.protocol}://${req.get('host').replace('5003', '3001')}/shared/${shareToken}`;
+
+    res.json({
+      shareToken,
+      shareUrl,
+      permissionLevel
+    });
+
+  } catch (err) {
+    console.error('Error al crear enlace compartido:', err);
+    res.status(500).json({ msg: 'Error del servidor' });
+  }
+});
+
+// @route   GET api/games/shared/:token
+// @desc    Acceder a un juego compartido mediante token
+// @access  Private (requiere autenticación)
+router.get('/shared/:token', authMiddleware, async (req, res) => {
+  const shareToken = req.params.token;
+  const currentUserId = req.user.id;
+
+  try {
+    // Buscar el enlace compartido
+    const [shareRows] = await pool.query(`
+      SELECT gs.*, g.title, g.description, g.user_id as owner_id, u.username as owner_name
+      FROM game_shares gs
+      JOIN games g ON gs.game_id = g.id
+      JOIN users u ON gs.owner_id = u.id
+      WHERE gs.share_token = ?
+    `, [shareToken]);
+
+    if (shareRows.length === 0) {
+      return res.status(404).json({ msg: 'Enlace compartido no válido o expirado' });
+    }
+
+    const shareInfo = shareRows[0];
+    const gameId = shareInfo.game_id;
+
+    // Si el permiso es 'edit', agregar como colaborador (si no lo es ya)
+    if (shareInfo.permission_level === 'edit' && currentUserId !== shareInfo.owner_id) {
+      try {
+        await pool.query(
+          'INSERT IGNORE INTO game_collaborators (game_id, user_id, owner_id) VALUES (?, ?, ?)',
+          [gameId, currentUserId, shareInfo.owner_id]
+        );
+      } catch (err) {
+        console.warn('Error adding collaborator (might already exist):', err);
+      }
+    }
+
+    // Obtener el juego completo con preguntas y respuestas
+    const [gameResult] = await pool.query('SELECT id, title, description, template_id, styles, layout, is_public FROM games WHERE id = ?', [gameId]);
+    
+    if (gameResult.length === 0) {
+      return res.status(404).json({ msg: 'Juego no encontrado' });
+    }
+
+    const game = gameResult[0];
+
+    // Obtener preguntas y respuestas
+    const [questionsRows] = await pool.query(`
+      SELECT q.*, GROUP_CONCAT(DISTINCT a.answer_text ORDER BY a.id SEPARATOR '|') as options,
+             GROUP_CONCAT(DISTINCT CASE WHEN a.is_correct = 1 THEN a.answer_text END) as correct_answer_text
+      FROM game_questions q
+      LEFT JOIN game_answers a ON q.id = a.question_id
+      WHERE q.game_id = ?
+      GROUP BY q.id
+      ORDER BY q.order, q.id
+    `, [gameId]);
+
+    // Procesar preguntas
+    const questions = questionsRows.map(q => ({
+      id: q.id,
+      question: q.question_text,
+      imageUrl: q.image_url,
+      options: q.options ? q.options.split('|') : [],
+      correct_answer: q.correct_answer_text || '',
+      order: q.order
+    }));
+
+    game.questions = questions;
+
+    // Parsear styles y layout si existen
+    try {
+      if (game.styles && typeof game.styles === 'string') {
+        game.styles = JSON.parse(game.styles);
+      }
+      if (game.layout && typeof game.layout === 'string') {
+        game.layout = JSON.parse(game.layout);
+      }
+    } catch (err) {
+      console.warn('Failed to parse styles/layout:', err);
+    }
+
+    res.json({
+      game,
+      shareInfo: {
+        permissionLevel: shareInfo.permission_level,
+        ownerName: shareInfo.owner_name,
+        sharedAt: shareInfo.created_at,
+        isOwner: currentUserId === shareInfo.owner_id
+      },
+      isShared: true,
+      readOnly: shareInfo.permission_level === 'view'
+    });
+
+  } catch (err) {
+    console.error('Error al acceder a juego compartido:', err);
+    res.status(500).json({ msg: 'Error del servidor' });
   }
 });
 

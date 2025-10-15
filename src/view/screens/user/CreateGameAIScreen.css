@@ -34,19 +34,19 @@
 
 /* Timer Circle */
 .timer-circle {
-    position: absolute;
-    top: 10px;
-    right: 10px;
-    width: 100px;
-    height: 100px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 3rem;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-    border: 3px solid white;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  font-weight: bold;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  border: 3px solid white;
 }
 
 /* Question text style */
@@ -193,11 +193,19 @@
 
 .image-preview-wrapper {
   position: relative;
+  max-width: 100%;
+  max-height: 300px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .image-preview {
-  width: 100%;
-  height: auto;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
 }
 
 /* Modal styles */
@@ -298,6 +306,25 @@
 .image-preview-thumbnail {
   image-rendering: -webkit-optimize-contrast;
   image-rendering: crisp-edges;
+  object-fit: contain;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 6px;
+}
+
+/* Estilos para imágenes del modal */
+.modal-image-grid img {
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+}
+
+.modal-preview-image {
+  object-fit: cover;
+  max-width: 100%;
+  max-height: 100%;
 }
 
 /* Question image dropzone */
@@ -308,11 +335,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 1rem;
+  overflow: hidden; /* Previene desbordamiento */
+  position: relative;
   background-color: #f9fafb;
-  transition: all 0.2s ease-in-out;
-  overflow: hidden;
-  align-self: center;
+  border-radius: 8px;
+  padding: 1rem;
+  box-sizing: border-box;
 }
 
 .question-image-dropzone.dragging-over {
@@ -327,7 +355,59 @@
 }
 
 .question-image-preview {
-  width: 100%;
-  height: 100%;
+  max-width: calc(100% - 2rem);
+  max-height: calc(100% - 2rem);
+  width: auto;
+  height: auto;
   object-fit: contain;
+  display: block;
+  margin: auto;
+  border-radius: 6px;
+}
+
+/* --- Layout Templates --- */
+
+/* Default Layout */
+.layout-default .ai-game-question-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.layout-default .question-image-dropzone { order: 1; height: 20rem; width: 100%; max-width: 40rem; }
+.layout-default .ai-game-answer-grid { order: 2; width: 100%; }
+.layout-default .mb-6 { order: 0; text-align: center; width: 100%; }
+
+/* Image Left Layout */
+.layout-image-left .ai-game-question-card {
+  display: grid;
+  grid-template-columns: 360px 1fr; /* fixed image column and flexible content */
+  grid-template-rows: auto 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+.layout-image-left .question-image-dropzone { grid-column: 1 / 2; grid-row: 1 / 3; height: 100%; width: 100%; max-width: 360px; margin-bottom: 0; }
+.layout-image-left .mb-6 { grid-column: 2 / 3; grid-row: 1 / 2; text-align: left; }
+.layout-image-left .ai-game-answer-grid { grid-column: 2 / 3; grid-row: 2 / 3; align-self: center; }
+
+/* Image Right Layout */
+.layout-image-right .ai-game-question-card {
+  display: grid;
+  grid-template-columns: 1fr 360px; /* flexible content and fixed image column */
+  grid-template-rows: auto 1fr;
+  gap: 1.5rem;
+  align-items: start;
+}
+.layout-image-right .question-image-dropzone { grid-column: 2 / 3; grid-row: 1 / 3; height: 100%; width: 100%; max-width: 360px; margin-bottom: 0; }
+.layout-image-right .mb-6 { grid-column: 1 / 2; grid-row: 1 / 2; text-align: left; }
+.layout-image-right .ai-game-answer-grid { grid-column: 1 / 2; grid-row: 2 / 3; align-self: center; }
+
+/* Wrapper used for each template preview in the sidebar */
+.template-preview-wrapper {
+  flex-shrink: 0;
+  height: 140px;
+  width: 240px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

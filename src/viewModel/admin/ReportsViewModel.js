@@ -35,6 +35,44 @@ const ReportsViewModel = {
       return { success: false, error: error.message };
     }
   },
+
+  downloadUserReport: async (reportType = 'ALL_USERS') => {
+    try {
+      const api = require('../../model/data/api/apiClient').default;
+      const response = await api.post(
+        '/stats/reports/users',
+        { report_type: reportType },
+        { responseType: 'blob' }
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  },
+
+  downloadGameReport: async (reportType) => {
+    try {
+      const api = require('../../model/data/api/apiClient').default;
+      const response = await api.post(
+        '/stats/reports/games',
+        { report_type: reportType },
+        { responseType: 'blob' }
+      );
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  },
+
+  downloadImageReport: async () => {
+    try {
+      const api = require('../../model/data/api/apiClient').default;
+      const response = await api.get('/stats/reports/images', { responseType: 'blob' });
+      return { success: true, data: response.data };
+    } catch (error) {
+      return { success: false, error: error.response?.data?.message || error.message };
+    }
+  },
 };
 
 export default ReportsViewModel;

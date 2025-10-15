@@ -3,6 +3,8 @@ const multer = require('multer');
 const path = require('path');
 const pool = require('../config/db');
 const { authMiddleware } = require('../middleware/authMiddleware');
+const axios = require('axios');
+const fs = require('fs');
 
 const router = express.Router();
 
@@ -83,6 +85,59 @@ router.delete('/:id', authMiddleware, async (req, res) => {
   } catch (err) {
     console.error('Error al eliminar la imagen:', err);
     res.status(500).json({ success: false, message: 'Error del servidor al eliminar la imagen.' });
+  }
+});
+
+// @route   POST /api/images/upload-from-url
+// @desc    Descarga una imagen desde una URL, la guarda y la asocia con el usuario
+// @access  Private
+router.post('/upload-from-url', authMiddleware, async (req, res) => {
+  const { url: imageUrl } = req.body;
+  const userId = req.user.id;
+
+  if (!imageUrl) {
+    return res.status(400).json({ success: false, message: 'No se proporcionó ninguna URL.' });
+  }
+
+  try {
+    // 1. Descargar la imagen
+    const response = await axios({ url: imageUrl, responseType: 'arraybuffer' });
+    const buffer = Buffer.from(response.data, 'binary');
+
+    // 2. Crear un nombre de archivo único
+    // Extraer la extensión de la URL, manejando casos sin extensión o con parámetros
+    let extension = path.extname(new URL(imageUrl).pathname);
+    if (!extension) {
+        const contentType = response.headers['content-type'];
+        if (contentType && contentType.startsWith('image/')) {
+            extension = '.' + contentType.split('/')[1];
+        } else {
+            extension = '.jpg'; // Usar un default si todo falla
+        }
+    }
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const filename = `image-${uniqueSuffix}${extension}`;
+    const localPath = path.join(__dirname, '../public/uploads', filename);
+
+    // 3. Guardar el archivo en el servidor
+    fs.writeFileSync(localPath, buffer);
+
+    // 4. Guardar la referencia en la base de datos
+    const finalImageUrl = `/uploads/${filename}`;
+    const query = 'INSERT INTO images (user_id, image_url, filename) VALUES (?, ?, ?)';
+    const [result] = await pool.query(query, [userId, finalImageUrl, filename]);
+
+    // 5. Enviar la respuesta
+    res.status(201).json({
+      success: true,
+      message: 'Imagen subida desde URL con éxito',
+      imageUrl: finalImageUrl,
+      imageId: result.insertId
+    });
+
+  } catch (error) {
+    console.error('Error al descargar la imagen desde la URL:', error);
+    res.status(500).json({ success: false, message: 'Error al procesar la imagen desde la URL.' });
   }
 });
 

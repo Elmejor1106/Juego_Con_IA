@@ -33,7 +33,7 @@ const LoginScreen = ({ showForm }) => {
   return (
     <>
       <h2>Iniciar Sesión</h2>
-      {error && <p className="error-message" style={{ color: 'red', textAlign: 'center' }}>{error}</p>}
+      {error && <p className="error-message">{error}</p>}
       <form onSubmit={handleLogin}>
         <div className="input-group">
           <input

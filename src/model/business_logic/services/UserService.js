@@ -60,6 +60,41 @@ const UserService = {
       throw new Error(error.response?.data?.msg || 'No se pudo desactivar el usuario');
     }
   },
+
+  /**
+   * Obtiene el perfil de un usuario específico.
+   * @param {string} userId - El ID del usuario.
+   * @returns {Promise<object>} Los datos del perfil del usuario.
+   */
+  getUserProfile: async (userId) => {
+    console.log(`📡 [UserService] Solicitando perfil para usuario ${userId}`);
+    try {
+      const response = await apiClient.get(`/users/${userId}/profile`);
+      console.log(`✅ [UserService] Perfil obtenido para usuario ${userId}:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`❌ [UserService] Error al obtener perfil de usuario ${userId}:`, error.response?.data?.msg || error.message);
+      throw new Error(error.response?.data?.msg || 'No se pudo obtener el perfil del usuario');
+    }
+  },
+
+  /**
+   * Actualiza el perfil de un usuario.
+   * @param {string} userId - El ID del usuario.
+   * @param {object} profileData - Los datos del perfil a actualizar.
+   * @returns {Promise<object>} Un mensaje de confirmación.
+   */
+  updateUserProfile: async (userId, profileData) => {
+    console.log(`📡 [UserService] Actualizando perfil para usuario ${userId}:`, profileData);
+    try {
+      const response = await apiClient.put(`/users/${userId}/profile`, profileData);
+      console.log(`✅ [UserService] Perfil actualizado para usuario ${userId}:`, response.data);
+      return response.data;
+    } catch (error) {
+      console.error(`❌ [UserService] Error al actualizar perfil de usuario ${userId}:`, error.response?.data?.msg || error.message);
+      throw new Error(error.response?.data?.msg || 'No se pudo actualizar el perfil del usuario');
+    }
+  },
 };
 
 export default UserService;

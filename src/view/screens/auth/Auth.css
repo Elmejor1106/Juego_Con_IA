@@ -1,25 +1,32 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
+
 .auth-screen {
   position: relative;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
-  background: #000; /* Fallback */
+  font-family: 'Inter', sans-serif;
+  background: linear-gradient(135deg, #1e3a8a 0%, #3730a3 25%, #1e40af 50%, #1d4ed8 75%, #2563eb 100%);
 }
 
-/* Dark Gray Triangle */
+/* Decorative floating elements */
 .auth-screen::before {
   content: '';
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(45deg, #333333, #444444); /* Initial dark gray gradient */
-  animation: dark-gray-gradient-animation 15s ease infinite alternate; /* Apply animation */
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: 
+    radial-gradient(circle at 20% 80%, rgba(59, 130, 246, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(255, 255, 255, 0.08) 0%, transparent 50%),
+    radial-gradient(circle at 40% 40%, rgba(147, 197, 253, 0.1) 0%, transparent 50%);
+  animation: float-bubbles 20s ease-in-out infinite;
   z-index: 0;
 }
 
-/* Light Gray Triangle with transition */
+/* Gaming elements background */
 .auth-screen::after {
   content: '';
   position: absolute;
@@ -27,230 +34,632 @@
   left: 0;
   width: 100%;
   height: 100%;
-  background: linear-gradient(-135deg, #BBBBBB, #CCCCCC); /* Initial light gray gradient */
-  animation: light-gray-gradient-animation 15s ease infinite alternate; /* Apply animation */
-  clip-path: polygon(0 0, 100% 0, 100% 100%); /* Initial: top-right triangle */
-  transition: clip-path 0.8s cubic-bezier(0.77, 0, 0.175, 1);
-  z-index: 1; /* Above the dark triangle */
+  background-image: 
+    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><defs><pattern id="gamepad" patternUnits="userSpaceOnUse" width="100" height="100"><circle cx="20" cy="20" r="2" fill="rgba(255,255,255,0.1)"/><circle cx="80" cy="80" r="2" fill="rgba(255,255,255,0.1)"/></pattern></defs><rect width="100" height="100" fill="url(%23gamepad)"/></svg>');
+  opacity: 0.6;
+  animation: subtle-move 30s ease-in-out infinite;
+  z-index: 1;
 }
 
-/* Keyframes for dark gray gradient animation */
-@keyframes dark-gray-gradient-animation {
-  0% {
-    background: linear-gradient(45deg, #333333, #444444);
+/* Floating decorative icons */
+.auth-screen .floating-icons {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.auth-screen .floating-icon {
+  position: absolute;
+  font-size: 32px;
+  opacity: 0.4;
+  animation: float-random 15s ease-in-out infinite;
+}
+
+.auth-screen .floating-icon:nth-child(1) {
+  content: '🎯';
+  top: 10%;
+  left: 15%;
+  animation-delay: 0s;
+  animation-duration: 12s;
+}
+
+.auth-screen .floating-icon:nth-child(2) {
+  content: '🏆';
+  top: 20%;
+  right: 10%;
+  animation-delay: 2s;
+  animation-duration: 18s;
+}
+
+.auth-screen .floating-icon:nth-child(3) {
+  content: '⭐';
+  bottom: 25%;
+  left: 8%;
+  animation-delay: 4s;
+  animation-duration: 14s;
+}
+
+.auth-screen .floating-icon:nth-child(4) {
+  content: '🎲';
+  bottom: 15%;
+  right: 20%;
+  animation-delay: 6s;
+  animation-duration: 16s;
+}
+
+.auth-screen .floating-icon:nth-child(5) {
+  content: '🎪';
+  top: 70%;
+  left: 25%;
+  animation-delay: 8s;
+  animation-duration: 20s;
+}
+
+.auth-screen .floating-icon:nth-child(6) {
+  content: '🎨';
+  top: 40%;
+  right: 30%;
+  animation-delay: 10s;
+  animation-duration: 15s;
+}
+
+.auth-screen .floating-icon:nth-child(7) {
+  content: '🎭';
+  top: 60%;
+  right: 5%;
+  animation-delay: 1s;
+  animation-duration: 17s;
+}
+
+.auth-screen .floating-icon:nth-child(8) {
+  content: '🎊';
+  bottom: 40%;
+  left: 5%;
+  animation-delay: 3s;
+  animation-duration: 13s;
+}
+
+@keyframes float-random {
+  0%, 100% {
+    transform: translateY(0px) translateX(0px) rotate(0deg);
+    opacity: 0.3;
+  }
+  25% {
+    transform: translateY(-20px) translateX(10px) rotate(90deg);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-10px) translateX(-15px) rotate(180deg);
+    opacity: 0.4;
+  }
+  75% {
+    transform: translateY(-30px) translateX(5px) rotate(270deg);
+    opacity: 0.5;
+  }
+}
+
+@keyframes float-bubbles {
+  0%, 100% {
+    transform: translate(0px, 0px) rotate(0deg);
   }
   33% {
-    background: linear-gradient(45deg, #222222, #555555);
+    transform: translate(30px, -30px) rotate(120deg);
   }
   66% {
-    background: linear-gradient(45deg, #111111, #666666);
-  }
-  100% {
-    background: linear-gradient(45deg, #333333, #444444);
+    transform: translate(-20px, 20px) rotate(240deg);
   }
 }
 
-/* Keyframes for light gray gradient animation */
-@keyframes light-gray-gradient-animation {
-  0% {
-    background: linear-gradient(-135deg, #BBBBBB, #CCCCCC);
+@keyframes subtle-move {
+  0%, 100% {
+    transform: translateX(0px);
   }
-  33% {
-    background: linear-gradient(-135deg, #AAAAAA, #DDDDDD);
-  }
-  66% {
-    background: linear-gradient(-135deg, #999999, #EEEEEE);
-  }
-  100% {
-    background: linear-gradient(-135deg, #BBBBBB, #CCCCCC);
+  50% {
+    transform: translateX(20px);
   }
 }
 
-/* This class MUST be added to .auth-screen by JavaScript to trigger the animation */
-.auth-screen.register-active::after {
-  clip-path: polygon(0 100%, 100% 0, 100% 100%); /* On register-active: bottom-left triangle */
+/* Glass morphism effect for register state */
+.auth-screen.register-active::before {
+  background: 
+    radial-gradient(circle at 80% 20%, rgba(120, 119, 198, 0.4) 0%, transparent 50%),
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.2) 0%, transparent 50%),
+    radial-gradient(circle at 60% 60%, rgba(120, 119, 198, 0.3) 0%, transparent 50%);
 }
 
 .auth-container {
   position: absolute;
-  top: 60%;
-  left: 20%; /* Positioned in the left triangle */
+  top: 50%;
+  left: 50%;
   transform: translate(-50%, -50%);
-  width: 400px;
-  padding: 40px;
-  z-index: 2;
-  transition: left 0.8s cubic-bezier(0.77, 0, 0.175, 1), color 0.5s;
-  color: #fff; /* Text color on the dark side */
-}
-
-/* This class MUST be added to .auth-screen by JavaScript to move the form */
-.auth-screen.register-active .auth-container {
-  left: 75%;
-  color: #000; /* Text color on the light side */
-}
-
-.form-container {
-  background: transparent;
+  width: min(750px, 95vw);
   padding: 0;
-  border-radius: 0;
-  box-shadow: none;
-  width: 100%;
+  z-index: 2;
+  transition: all 0.8s cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* Glass card effect */
+.form-container {
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 2px solid transparent;
+  border-radius: 20px;
+  padding: 50px 55px;
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.15),
+    0 10px 20px rgba(0, 0, 0, 0.1);
   position: relative;
-  height: 400px; /* Avoid collapsing */
+  overflow: hidden;
+  min-height: 750px;
+  background-clip: padding-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: stretch;
+}
+
+/* Professional border */
+.form-container::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  background: white;
+  background-size: 400% 400%;
+  border-radius: 20px;
+  z-index: -1;
+  animation: professional-border 6s ease-in-out infinite;
+}
+
+@keyframes professional-border {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Decorative elements in the card */
+.form-container::after {
+  content: '🎮';
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  font-size: 24px;
+  opacity: 0.3;
+  animation: pulse-icon 3s ease-in-out infinite;
+}
+
+@keyframes pulse-icon {
+  0%, 100% { 
+    transform: scale(1);
+    opacity: 0.3;
+  }
+  50% { 
+    transform: scale(1.1);
+    opacity: 0.6;
+  }
 }
 
 /* Forms must be structured to be siblings for this to work */
 .login-form,
 .register-form,
 .forgot-password-form {
-  position: absolute;
+  position: relative;
   width: 100%;
-  top: 50%;
-  transform: translateY(-50%);
-  transition: opacity 0.5s ease-in-out, visibility 0.5s;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.5s ease-in-out;
+  transform: translateY(20px);
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 /* By default, only the login form is visible */
 .login-form {
   opacity: 1;
   visibility: visible;
+  transform: translateY(0);
+  position: relative;
 }
 
+/* Hide non-active forms completely */
 .register-form,
 .forgot-password-form {
-  opacity: 0;
-  visibility: hidden;
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 /* The .register-active class on the parent hides the login form and shows the register form */
 .auth-screen.register-active .login-form {
   opacity: 0;
   visibility: hidden;
+  transform: translateY(-20px);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .auth-screen.register-active .register-form {
   opacity: 1;
   visibility: visible;
+  transform: translateY(0);
+  position: relative;
 }
 
 .auth-screen.forgot-password-active .login-form {
   opacity: 0;
   visibility: hidden;
+  transform: translateY(-20px);
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 }
 
 .auth-screen.forgot-password-active .forgot-password-form {
   opacity: 1;
   visibility: visible;
-  background-color: white; /* White background */
-  padding: 20px; /* Add some padding */
-  border-radius: 8px; /* Rounded corners */
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1); /* Add a subtle shadow */
+  transform: translateY(0);
+  position: relative;
 }
 
-.auth-screen.forgot-password-active .auth-container {
-  left: 50%; /* Center horizontally */
-  transform: translate(-50%, -50%); /* Adjust for centering */
-  color: #000; /* Text color should be black on white background */
-}
-
+/* Enhanced header styling */
 .auth-container h2 {
-  margin-bottom: 20px;
-  font-size: 2rem;
+  margin-bottom: 30px;
+  margin-top: 15px;
+  font-size: 2.4rem;
+  font-weight: 700;
   text-align: center;
+  color: #1e293b;
+  position: relative;
+  padding-bottom: 15px;
 }
 
+.auth-container h2::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  border-radius: 2px;
+}
+
+/* Modern input styling */
 .auth-container .input-group {
   position: relative;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
+  padding: 0 8px;
 }
 
 .auth-container .input-group input {
   width: 100%;
-  padding: 10px 0;
+  padding: 20px 30px 20px 60px;
   font-size: 16px;
-  color: inherit; 
-  border: none;
-  border-bottom: 2px solid #39FF14; /* Fluorescent green border */
+  color: #1e293b;
+  border: 2px solid #e2e8f0;
+  border-radius: 14px;
   outline: none;
-  background: transparent;
+  background: #f8fafc;
+  transition: all 0.3s ease;
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
 }
 
+.auth-container .input-group input:focus {
+  border-color: #3b82f6;
+  background: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 25px rgba(59, 130, 246, 0.15);
+}
+
+.auth-container .input-group input:valid {
+  border-color: #10b981;
+}
+
+/* Floating labels */
 .auth-container .input-group label {
   position: absolute;
-  top: 0;
-  left: 0;
-  padding: 10px 0;
+  top: 20px;
+  left: 60px;
+  padding: 0 8px;
   font-size: 16px;
-  color: inherit;
+  color: #64748b;
   pointer-events: none;
-  transition: 0.5s;
+  transition: all 0.3s ease;
+  background: transparent;
+  font-weight: 500;
 }
 
 .auth-container .input-group input:focus ~ label,
 .auth-container .input-group input:valid ~ label {
-  top: -25px; /* Adjusted for more margin */
-  left: 0;
+  top: -10px;
+  left: 25px;
   font-size: 12px;
+  color: #3b82f6;
+  background: #ffffff;
+  font-weight: 600;
 }
 
+/* Input icons */
+.auth-container .input-group::before {
+  content: '';
+  position: absolute;
+  left: 25px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  z-index: 1;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.auth-container .input-group:focus-within::before {
+  opacity: 1;
+}
+
+/* Email icon */
+.auth-container .input-group:has(input[type="email"])::before {
+  content: '📧';
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Password icon */
+.auth-container .input-group:has(input[type="password"])::before {
+  content: '🔒';
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Username icon */
+.auth-container .input-group:has(input[type="text"])::before {
+  content: '👤';
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Modern button styling */
 .auth-container button {
   width: 100%;
-  padding: 10px;
-  border: 1px solid #006400; /* Dark green border */
-  border-radius: 5px;
-  background: #006400; /* Dark green background */
-  color: #FFFFFF; /* White text */
+  padding: 18px 30px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+  color: #ffffff;
   font-size: 16px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
   cursor: pointer;
-  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.3s ease; /* Added transform to transition */
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  margin: 15px 8px 20px 8px;
+}
+
+.auth-container button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+  transition: left 0.5s;
 }
 
 .auth-container button:hover {
-  transform: scale(1.05); /* Zoom effect */
-  background-color: #008000; /* Slightly lighter green on hover */
-  border-color: #008000; /* Match border color on hover */
+  transform: translateY(-1px);
+  box-shadow: 0 12px 30px rgba(59, 130, 246, 0.3);
+}
+
+.auth-container button:hover::before {
+  left: 100%;
 }
 
 .auth-container button:active {
-  background-color: #004d00; /* Even darker green when pressed */
-  border-color: #004d00; /* Match border color when pressed */
-  transform: scale(0.98); /* Slight shrink on press */
+  transform: translateY(0);
+  box-shadow: 0 6px 16px rgba(59, 130, 246, 0.2);
 }
 
-/* Adjust for register-active state - these might need to be re-evaluated */
-/* If the button has a fixed background color, the inherit logic might not apply as directly */
-/* For simplicity, I will make the button consistent across both sides */
-.auth-screen.register-active .auth-container button {
-    border-color: #006400; /* Dark green border */
-    background: #006400; /* Dark green background */
-    color: #FFFFFF; /* White text */
-}
-
-.auth-screen.register-active .auth-container button:hover {
-    transform: scale(1.05); /* Zoom effect */
-    background-color: #008000; /* Slightly lighter green on hover */
-    border-color: #008000; /* Match border color on hover */
-}
-
-.auth-screen.register-active .auth-container button:active {
-    background-color: #004d00; /* Even darker green when pressed */
-    border-color: #004d00; /* Match border color when pressed */
-    transform: scale(0.98); /* Slight shrink on press */
-}
-
+/* Links styling */
 .auth-container p {
-  margin-top: 20px;
+  margin: 25px 15px 20px 15px;
   text-align: center;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 0 8px;
 }
 
 .auth-container p a {
-  font-weight: bold;
+  font-weight: 600;
   cursor: pointer;
   text-decoration: none;
-  color: #008000; /* Green link color */
-  transition: color 0.3s;
+  color: #3b82f6;
+  transition: all 0.3s ease;
+  position: relative;
+}
+
+.auth-container p a::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background: linear-gradient(135deg, #3b82f6, #1d4ed8);
+  transition: width 0.3s ease;
 }
 
 .auth-container p a:hover {
-    color: #006400; /* Darker green on hover */
+  color: #1d4ed8;
+}
+
+.auth-container p a:hover::after {
+  width: 100%;
+}
+
+/* Error and success messages */
+.error-message {
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626 !important;
+  padding: 15px 25px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin: 15px 8px 25px 8px;
+  text-align: center !important;
+  font-weight: 500;
+  animation: shake 0.5s ease-in-out;
+}
+
+.success-message {
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  color: #059669 !important;
+  padding: 15px 25px;
+  border-radius: 10px;
+  font-size: 14px;
+  margin: 15px 8px 25px 8px;
+  text-align: center !important;
+  font-weight: 500;
+  animation: slideIn 0.5s ease-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Instructions text for forgot password */
+.instructions {
+  color: #475569 !important;
+  font-size: 14px;
+  text-align: center !important;
+  margin: 15px 8px 25px 8px !important;
+  padding: 20px;
+  background: rgba(59, 130, 246, 0.05);
+  border-radius: 10px;
+  border-left: 4px solid #3b82f6;
+  line-height: 1.5;
+}
+
+/* Responsive design */
+@media (max-width: 768px) {
+  .auth-container {
+    width: 95vw;
+    padding: 0;
+  }
+  
+  .form-container {
+    padding: 40px 30px;
+    border-radius: 16px;
+    min-height: auto;
+  }
+  
+  .auth-container h2 {
+    font-size: 2rem;
+    margin-bottom: 25px;
+    margin-top: 15px;
+  }
+  
+  .auth-container .input-group {
+    margin-bottom: 20px;
+    padding: 0 5px;
+  }
+  
+  .auth-container .input-group input {
+    padding: 16px 22px 16px 50px;
+    font-size: 15px;
+  }
+  
+  .auth-container .input-group label {
+    left: 50px;
+    font-size: 15px;
+  }
+  
+  .auth-container .input-group input:focus ~ label,
+  .auth-container .input-group input:valid ~ label {
+    font-size: 12px;
+    left: 20px;
+  }
+  
+  .auth-container .input-group::before {
+    left: 20px;
+  }
+  
+  .auth-container button {
+    padding: 16px 25px;
+    margin: 12px 5px 18px 5px;
+  }
+  
+  .auth-container p {
+    margin: 20px 12px 18px 12px;
+    padding: 0 5px;
+  }
+  
+  .floating-icon {
+    font-size: 24px !important;
+  }
+  
+  .instructions {
+    padding: 18px !important;
+    margin: 12px 5px 20px 5px !important;
+  }
+  
+  .error-message,
+  .success-message {
+    padding: 12px 20px;
+    margin: 12px 5px 20px 5px;
+  }
+}
+
+/* Loading state for buttons */
+.auth-container button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.auth-container button:disabled:hover {
+  transform: none;
+  box-shadow: none;
 }

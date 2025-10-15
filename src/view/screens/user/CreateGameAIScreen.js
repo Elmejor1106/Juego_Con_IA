@@ -5,7 +5,17 @@ import { ArrowLeft, Share2, Bot, Loader, Wand2, BookOpen, Languages, Hash, Users
 import AIGameViewModel from '../../../viewModel/game/AIGameViewModel';
 import ImageService from '../../../model/business_logic/services/ImageService';
 import SuccessModal from '../../components/common/SuccessModal';
+import ShareModal from '../../components/game/ShareModal';
+import ImageSuggestions from '../../components/game/ImageSuggestions';
 import './CreateGameAIScreen.css';
+
+// Imagen transparente de 1x1 pixel en base64 (invisible)
+const DEFAULT_TRANSPARENT_IMAGE = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVQIHWNgAAIAAAUAAY27m/MAAAAASUVORK5CYII=';
+
+// Helper function para verificar si una imagen es la transparente por defecto
+const isDefaultTransparentImage = (imageUrl) => {
+  return imageUrl && imageUrl.startsWith(DEFAULT_TRANSPARENT_IMAGE);
+};
 
 // --- Helper Components ---
 
@@ -71,6 +81,175 @@ const SidebarButton = ({ icon, isActive, onClick }) => (
   </button>
 );
 
+// Simple LayoutSelector component shared by CreateGameAIScreen and GameEditorScreen
+export const LayoutSelector = ({ setLayout, selectedLayout, onSelectLayout }) => {
+  const layouts = [
+    { key: 'default', label: 'Default' },
+  ];
+
+  const cardStyle = {
+    width: 240,
+    height: 150,
+    borderRadius: 10,
+    padding: 10,
+    boxSizing: 'border-box',
+    background: 'linear-gradient(180deg, #ffffff 0%, #fbfdff 100%)',
+    border: '1px solid rgba(226,232,240,0.8)',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 6,
+    boxShadow: '0 6px 16px rgba(15,23,42,0.08)',
+    fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial",
+  };
+
+  const Header = ({ text }) => (
+    <div style={{ height: 18, borderRadius: 6, background: '#f3f4f6', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#374151' }}>{text}</div>
+  );
+
+  const ImageBlock = () => (
+    <div style={{ height: 44, borderRadius: 6, background: '#e6f2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#0c4a6e' }}>Imagen</div>
+  );
+
+  const AnswersBlock = () => (
+    <div style={{ display: 'flex', gap: 6 }}>
+      <div style={{ flex: 1, height: 20, borderRadius: 6, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>Respuesta 1</div>
+      <div style={{ flex: 1, height: 20, borderRadius: 6, background: '#f8fafc', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>Respuesta 2</div>
+    </div>
+  );
+
+  const Timer = ({ position = 'top-right', bg, textColor }) => {
+    const base = { width: 32, height: 32, borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#111827', fontWeight: 600 };
+    const defaultMap = {
+      'top-right': { position: 'absolute', top: 8, right: 8, background: 'linear-gradient(180deg,#fed7aa,#fb7185)', ...base },
+      'top-left': { position: 'absolute', top: 8, left: 8, background: 'linear-gradient(180deg,#bfdbfe,#3b82f6)', color: '#ffffff', ...base },
+      'bottom-right': { position: 'absolute', bottom: 8, right: 8, background: 'linear-gradient(180deg,#bbf7d0,#10b981)', color: '#065f46', ...base },
+      'bottom-left': { position: 'absolute', bottom: 8, left: 8, background: 'linear-gradient(180deg,#ddd6fe,#7c3aed)', color: '#ffffff', ...base },
+    };
+
+    const style = bg ? { position: 'absolute', ...(position === 'top-right' && { top: 8, right: 8 }), ...(position === 'top-left' && { top: 8, left: 8 }), ...(position === 'bottom-right' && { bottom: 8, right: 8 }), ...(position === 'bottom-left' && { bottom: 8, left: 8 }), background: bg, color: textColor || '#fff', ...base } : (defaultMap[position] || defaultMap['top-right']);
+
+    return <div style={style}>15</div>;
+  };
+
+  const Preview = ({ type }) => {
+    // Each preview renders the same elements but arranged according to layout type; use sample text
+    const container = (children) => (
+      <div style={{ ...cardStyle, position: 'relative', background: 'transparent' }}>
+        {children}
+      </div>
+    );
+
+    const compactPreview = (timerPos = 'top-left') => container(
+      <>
+        <Header text="Pregunta" />
+        {/* Insert image between question and answers for compact (template 3) */}
+        <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%' }}>
+          <div style={{ width: 96, height: 56, borderRadius: 6, background: '#e6f2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0c4a6e', fontSize: 11 }}>Imagen</div>
+        </div>
+        <AnswersBlock />
+        <div style={{ marginTop: 'auto', display: 'flex', justifyContent: 'flex-end' }}><div style={{ fontSize: 10, color: '#6b7280' }}>Ejemplo</div></div>
+        <Timer position={timerPos} bg={'#EF4444'} textColor={'#FFFFFF'} />
+      </>
+    );
+
+    if (type === 'compact') {
+      return compactPreview('top-left');
+    }
+
+    if (type === 'image-left') {
+      return container(
+        <div style={{ position: 'relative', width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '72px 1fr', gridTemplateRows: 'auto 1fr', gap: 6 }}>
+          {/* timer top-left */}
+          <div style={{ position: 'absolute', top: 8, left: 8 }}>
+            <Timer position={'top-left'} bg={'#EF4444'} textColor={'#FFFFFF'} />
+          </div>
+
+          <div style={{ gridColumn: '1 / 2', gridRow: '1 / 3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 6, background: '#e6f2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0c4a6e' }}>Img</div>
+          </div>
+
+          <div style={{ gridColumn: '2 / 3', gridRow: '1 / 2' }}>
+            <Header text="Pregunta" />
+            <div style={{ height: 8 }} />
+          </div>
+
+          <div style={{ gridColumn: '2 / 3', gridRow: '2 / 3' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div style={{ background: '#f8fafc', height: 18, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>Respuesta 1</div>
+              <div style={{ background: '#f8fafc', height: 18, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>Respuesta 2</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (type === 'image-right') {
+      // Build a mini card that mirrors the runtime layout: question top-left, answers below, image at right, timer top-right
+      return container(
+        <div style={{ position: 'relative', width: '100%', height: '100%', display: 'grid', gridTemplateColumns: '1fr 72px', gridTemplateRows: 'auto 1fr', gap: 6 }}>
+          {/* timer top-right */}
+          <div style={{ position: 'absolute', top: 8, right: 8 }}>
+            <Timer position={'top-right'} bg={'#EF4444'} textColor={'#FFFFFF'} />
+          </div>
+
+          <div style={{ gridColumn: '1 / 2', gridRow: '1 / 2' }}>
+            <Header text="Pregunta" />
+            <div style={{ height: 8 }} />
+          </div>
+
+          <div style={{ gridColumn: '2 / 3', gridRow: '1 / 3', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 6, background: '#e6f2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0c4a6e' }}>Img</div>
+          </div>
+
+          <div style={{ gridColumn: '1 / 2', gridRow: '2 / 3' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+              <div style={{ background: '#f8fafc', height: 18, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>Respuesta 1</div>
+              <div style={{ background: '#f8fafc', height: 18, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10 }}>Respuesta 2</div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+  // default: reuse compact preview but place the timer at top-right to match template 4
+  return compactPreview('top-right');
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-600 mb-2">Previsualizaciones de plantilla (columna, orden descendente):</p>
+      <div className="flex flex-col gap-3">
+        {layouts.slice().reverse().map(l => {
+          const handleClick = () => {
+            console.log('LayoutSelector clicked:', l.key);
+            if (onSelectLayout) onSelectLayout(l.key);
+            else if (setLayout) setLayout(l.key);
+          };
+
+          return (
+            <button
+              key={l.key}
+              type="button"
+              onClick={handleClick}
+              className={`flex items-center gap-3 p-2 rounded-md ${selectedLayout === l.key ? 'ring-2 ring-indigo-200' : 'hover:bg-gray-50'}`}
+              aria-pressed={selectedLayout === l.key}
+              aria-label={l.label}
+              title={l.label}
+              style={{ border: selectedLayout === l.key ? '2px solid #4f46e5' : '1px solid #e6e6e6', background: '#fff', cursor: 'pointer' }}
+            >
+              <div className="template-preview-wrapper">
+                  <Preview type={l.key} />
+                </div>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+
+
 const NewSidebar = ({ onImagesLoaded }) => {
   const [isPanelOpen, setIsPanelOpen] = useState(false);
   const [activeSection, setActiveSection] = useState(null);
@@ -109,6 +288,14 @@ const NewSidebar = ({ onImagesLoaded }) => {
   };
 
   const handleUploadComplete = (uploadResult) => {
+    // Si es un refresh de imágenes
+    if (uploadResult.refresh && uploadResult.images) {
+      setUploadedImages(uploadResult.images);
+      onImagesLoaded(uploadResult.images.map(img => img.image_url));
+      return;
+    }
+    
+    // Si es una subida normal
     if (uploadResult.success) {
       const newImage = { id: uploadResult.imageId, image_url: uploadResult.imageUrl };
       const newImageList = [newImage, ...uploadedImages];
@@ -242,7 +429,7 @@ const ImageUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
         <div className="modal-body">
           <input type="file" ref={fileInputRef} onChange={handleFileChange} accept="image/jpeg, image/png, image/gif" style={{ display: 'none' }} />
           {previewUrl ? (
-            <div className="image-preview-wrapper modal-preview"><img src={previewUrl} alt="Vista previa" className="image-preview" /></div>
+            <div className="image-preview-wrapper modal-preview"><img src={previewUrl} alt="Vista previa" className="modal-preview-image" /></div>
           ) : (
             <div className="upload-placeholder" onClick={triggerFileSelect}>
               <UploadCloud size={48} className="text-gray-400" />
@@ -267,17 +454,257 @@ const ImageUploadModal = ({ isOpen, onClose, onUploadComplete }) => {
   );
 };
 
-const MainContent = ({ game, isAutoSaving, onSetQuestionImage, isPublic, onStateChange, onTitleChange, styles }) => {
+// Modal de selección de imágenes
+const ImageSelectionModal = ({ isOpen, onClose, onSelectImage, currentQuestion, uploadedImages, onUploadComplete, onRefreshImages }) => {
+  const [selectedFile, setSelectedFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [error, setError] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [activeSection, setActiveSection] = useState('ai'); // 'ai' o 'user'
+  const fileInputRef = useRef();
+
+  // Refrescar imágenes cuando se abre el modal o se cambia a la sección de usuario
+  useEffect(() => {
+    if (isOpen && activeSection === 'user' && onRefreshImages) {
+      onRefreshImages();
+    }
+  }, [isOpen, activeSection, onRefreshImages]);
+
+  if (!isOpen) return null;
+
+  const handleFileChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setError('Formato no válido. Solo se permite JPG, PNG o GIF.');
+      return;
+    }
+    setError(null);
+    setSelectedFile(file);
+    setPreviewUrl(URL.createObjectURL(file));
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) return;
+    setIsUploading(true);
+    setUploadProgress(0);
+    setError(null);
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+    try {
+      const response = await apiClient.post('/images/upload', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        onUploadProgress: (progressEvent) => {
+          const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+          setUploadProgress(percentCompleted);
+        },
+      });
+      onUploadComplete(response.data);
+      resetState();
+    } catch (err) {
+      const message = err.response?.data?.message || 'Error al subir la imagen.';
+      setError(message);
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const triggerFileSelect = () => fileInputRef.current.click();
+  
+  const resetState = () => {
+    setSelectedFile(null);
+    setPreviewUrl(null);
+    setError(null);
+    setIsUploading(false);
+    setUploadProgress(0);
+  };
+
+  const handleClose = () => {
+    resetState();
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+          <h3 className="text-lg font-semibold text-gray-800">Seleccionar Imagen</h3>
+          <button onClick={handleClose} className="text-gray-500 hover:text-gray-700">
+            <X size={24} />
+          </button>
+        </div>
+        
+        {/* Botones de navegación de secciones */}
+        <div className="flex border-b border-gray-200">
+          <button
+            onClick={() => setActiveSection('ai')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium transition-colors ${
+              activeSection === 'ai' 
+                ? 'bg-blue-50 text-blue-700 border-b-2 border-blue-500' 
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+            }`}
+          >
+            <Bot size={18} />
+            Sugerencias de IA
+          </button>
+          <button
+            onClick={() => setActiveSection('user')}
+            className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 text-sm font-medium transition-colors ${
+              activeSection === 'user' 
+                ? 'bg-green-50 text-green-700 border-b-2 border-green-500' 
+                : 'text-gray-600 hover:text-gray-800 hover:bg-gray-50'
+            }`}
+          >
+            <ImageIcon size={18} />
+            Mis Imágenes
+          </button>
+        </div>
+        
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-160px)]">
+          {/* Sección de Sugerencias de IA */}
+          {activeSection === 'ai' && (
+            <div className="space-y-4">
+              <div className="text-center mb-4">
+                <p className="text-gray-600 text-sm">
+                  Selecciona una imagen sugerida por la IA basada en tu pregunta
+                </p>
+              </div>
+              <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <ImageSuggestions
+                  query={currentQuestion?.question_text || ''}
+                  onSelectImage={(imageUrl) => {
+                    onSelectImage(imageUrl);
+                    handleClose();
+                  }}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Sección de Imágenes del Usuario */}
+          {activeSection === 'user' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <p className="text-gray-600 text-sm">
+                  Selecciona una de tus imágenes subidas o añade una nueva
+                </p>
+                <button 
+                  onClick={triggerFileSelect}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
+                >
+                  <UploadCloud size={16} />
+                  Subir Nueva
+                </button>
+              </div>
+              
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                onChange={handleFileChange}
+                className="hidden"
+              />
+
+              {/* Vista previa de archivo seleccionado */}
+              {previewUrl && (
+                <div className="border border-gray-200 rounded-lg p-4 bg-blue-50">
+                  <div className="flex items-center gap-4">
+                    <img src={previewUrl} alt="Preview" className="w-16 h-16 modal-preview-image rounded" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium">{selectedFile?.name}</p>
+                      <button
+                        onClick={handleUpload}
+                        disabled={isUploading}
+                        className="mt-2 px-3 py-1 bg-green-600 text-white rounded text-sm hover:bg-green-700 disabled:opacity-50"
+                      >
+                        {isUploading ? `Subiendo... ${uploadProgress}%` : 'Confirmar Subida'}
+                      </button>
+                    </div>
+                  </div>
+                  {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
+                </div>
+              )}
+
+              {/* Grid de imágenes subidas */}
+              <div className="grid grid-cols-4 gap-4 modal-image-grid">
+                {uploadedImages.map((image) => (
+                  <div 
+                    key={image.id} 
+                    className="relative group cursor-pointer hover:opacity-80 transition-opacity aspect-square"
+                    onClick={() => {
+                      onSelectImage(image.image_url);
+                      handleClose();
+                    }}
+                  >
+                    <img 
+                      src={image.image_url} 
+                      alt={`Imagen ${image.id}`} 
+                      className="w-full h-full object-cover rounded border border-gray-200"
+                    />
+                    <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded flex items-center justify-center">
+                      <CheckCircle2 size={20} className="text-white opacity-0 group-hover:opacity-100" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {uploadedImages.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <ImageIcon size={48} className="mx-auto mb-4 opacity-50" />
+                  <p className="text-lg font-medium mb-2">No tienes imágenes subidas aún</p>
+                  <p className="text-sm">Haz clic en "Subir Nueva" para agregar tu primera imagen</p>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+const MainContent = ({ game, isAutoSaving, onSetQuestionImage, isPublic, onStateChange, onTitleChange, styles, layout, layoutKey, uploadedImages, onUploadComplete, onShareClick }) => {
     const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
-    const [isDraggingOver, setIsDraggingOver] = useState(false);
     const [isEditingTitle, setIsEditingTitle] = useState(false);
     const [editableTitle, setEditableTitle] = useState('');
+    const [isImageModalOpen, setIsImageModalOpen] = useState(false);
+    const [isDragOver, setIsDragOver] = useState(false);
+
+    // Handlers para drag and drop de imágenes
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(true);
+    };
+
+    const handleDragLeave = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+    };
+
+    const handleDrop = (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        setIsDragOver(false);
+        const imageUrl = e.dataTransfer.getData('text/plain');
+        if (imageUrl && onSetQuestionImage) {
+            onSetQuestionImage(currentQuestionIndex, imageUrl);
+        }
+    };
 
     useEffect(() => {
         if (game) {
             setEditableTitle(game.title);
         }
     }, [game]);
+
+  // Diagnostic: log when layout prop changes so we can verify MainContent receives updates
+  useEffect(() => {
+    console.log('CreateGame MainContent layout prop changed:', layout);
+  }, [layout]);
 
     const handleTitleDoubleClick = () => {
         setIsEditingTitle(true);
@@ -296,27 +723,6 @@ const MainContent = ({ game, isAutoSaving, onSetQuestionImage, isPublic, onState
         if (e.key === 'Enter') {
             handleTitleBlur();
         }
-    };
-
-    const handleDrop = (e) => {
-        e.preventDefault();
-        setIsDraggingOver(false);
-        const imageUrl = e.dataTransfer.getData('text/plain');
-        if (imageUrl) {
-            onSetQuestionImage(currentQuestionIndex, imageUrl);
-        }
-    };
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-    };
-
-    const handleDragEnter = () => {
-        setIsDraggingOver(true);
-    };
-
-    const handleDragLeave = () => {
-        setIsDraggingOver(false);
     };
 
     if (!game || !game.questions || game.questions.length === 0) {
@@ -363,50 +769,97 @@ const MainContent = ({ game, isAutoSaving, onSetQuestionImage, isPublic, onState
                     )}
                     <AutoSaveIndicator isSaving={isAutoSaving} />
                 </div>
-                <button onClick={() => { /* TODO: Implement share functionality */ }} className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700">
+                <button 
+                    onClick={onShareClick} 
+                    className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg font-semibold text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={!game || !game.id}
+                    title={!game || !game.id ? "Guarda el juego primero para poder compartirlo" : "Compartir juego"}
+                >
                     <Share2 size={16} /> Compartir
                 </button>
             </div>
-            <div className="ai-game-questions-container">
-                <button onClick={goToPrevious} disabled={currentQuestionIndex === 0} className="ai-game-nav-arrow left"><ChevronLeft size={32} /></button>
-                <div className="ai-game-question-card-wrapper">
-                    <div className="ai-game-question-card">
-                        <div className="timer-circle" style={{ backgroundColor: styles.timerBg, color: styles.timerTextColor }}>15</div>
-                        <div className="mb-6">
-                            <p className="text-sm text-gray-500">Pregunta {currentQuestionIndex + 1} de {game.questions.length}</p>
-                            <p className="ai-game-question-text">{currentQuestion.question_text}</p>
-                        </div>
-                        <div
-                            className={`question-image-dropzone ${isDraggingOver ? 'dragging-over' : ''} ${currentQuestion.imageUrl ? 'has-image' : ''}`}
-                            onDrop={handleDrop}
-                            onDragOver={handleDragOver}
-                            onDragEnter={handleDragEnter}
-                            onDragLeave={handleDragLeave}
-                        >
-                            {currentQuestion.imageUrl ? (
-                                <img src={currentQuestion.imageUrl} alt="Pregunta" className="question-image-preview" />
-                            ) : (
-                                <div className="text-center text-gray-500">
-                                    <ImageIcon size={32} className="mx-auto" />
-                                    <p className="mt-2 text-sm">Arrastra una imagen aquí</p>
-                                </div>
-                            )}
-                        </div>
-                        <div className="ai-game-answer-grid">
-                            {currentQuestion.answers.map((ans, ansIndex) => (
-                                <div 
-                                    key={ansIndex} 
-                                    className={`ai-game-answer-button ${ans.is_correct ? 'correct' : 'incorrect'}`}
-                                    style={{ borderRadius: `${styles.buttonRadius}px` }}
-                                >
-                                    {ans.answer_text}
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-                </div>
-                <button onClick={goToNext} disabled={currentQuestionIndex === game.questions.length - 1} className="ai-game-nav-arrow right"><ChevronRight size={32} /></button>
+      <div className={`ai-game-questions-container layout-${layoutKey}`}>
+        <button onClick={goToPrevious} disabled={currentQuestionIndex === 0} className="ai-game-nav-arrow left"><ChevronLeft size={32} /></button>
+        <div className="ai-game-question-card-wrapper">
+          <div className="ai-game-question-card" style={{ backgroundColor: styles.containerBg, margin: '0 auto' }}>
+            {/* Timer: positioned top-right for default layout */}
+            <div className="timer-circle" style={{ position: 'absolute', top: '10px', right: '10px', backgroundColor: styles.timerBg, color: styles.timerTextColor }}>
+              15
             </div>
+
+            {/* Question header */}
+            <div className="mb-6 text-center">
+              <p className="text-sm" style={{ color: '#6b7280' }}>Pregunta {currentQuestionIndex + 1} de {game.questions.length}</p>
+              <h2 className="text-3xl font-bold mt-2" style={{ color: styles.questionText }}>{currentQuestion.question_text}</h2>
+            </div>
+
+            {/* Image section */}
+            <div 
+              className={`question-image-dropzone ${isDragOver ? 'dragging-over' : ''}`}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              {currentQuestion.imageUrl && !isDefaultTransparentImage(currentQuestion.imageUrl) ? (
+                <div className="relative w-full h-full flex items-center justify-center">
+                  <img src={currentQuestion.imageUrl} alt="Pregunta" className="question-image-preview" />
+                  <button
+                    onClick={() => setIsImageModalOpen(true)}
+                    className="absolute top-2 right-2 bg-blue-600 text-white rounded-lg px-3 py-1.5 text-sm font-medium hover:bg-blue-700 shadow-lg"
+                  >
+                    Cambiar Imagen
+                  </button>
+                </div>
+              ) : (
+                <div className="w-full flex flex-col items-center justify-center h-full min-h-[200px] text-gray-500">
+                  <ImageIcon size={48} className="mb-4 opacity-50" />
+                  <button
+                    onClick={() => setIsImageModalOpen(true)}
+                    className="flex items-center gap-3 px-8 py-4 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors shadow-lg text-lg"
+                  >
+                    <ImageIcon size={24} />
+                    Subir Imagen
+                  </button>
+                  <p className="text-sm mt-3 opacity-75">Haz clic para seleccionar una imagen o arrastra una desde el panel lateral</p>
+                </div>
+              )}
+            </div>
+
+            {/* Modal de selección de imágenes */}
+            <ImageSelectionModal
+              isOpen={isImageModalOpen}
+              onClose={() => setIsImageModalOpen(false)}
+              onSelectImage={(imageUrl) => onSetQuestionImage(currentQuestionIndex, imageUrl)}
+              currentQuestion={currentQuestion}
+              uploadedImages={uploadedImages}
+              onUploadComplete={onUploadComplete}
+              onRefreshImages={() => {
+                // Callback para refrescar imágenes cuando se abre el modal
+                const fetchImages = async () => {
+                  try {
+                    const images = await ImageService.getMyImages();
+                    // Usar onUploadComplete para forzar un refresh
+                    onUploadComplete({ success: true, refresh: true, images });
+                  } catch (error) {
+                    console.error("Failed to refresh images:", error);
+                  }
+                };
+                fetchImages();
+              }}
+            />
+
+            {/* Answers grid */}
+            <div className="ai-game-answer-grid" style={{ marginTop: '0.75rem' }}>
+              {currentQuestion.answers.map((ans, ansIndex) => (
+                <div key={ans.id || ansIndex} className={`ai-game-answer-button ${ans.is_correct ? 'correct' : 'incorrect'}`} style={{ borderRadius: `${styles.buttonRadius}px`, backgroundColor: styles.answerBg, color: styles.answerTextColor }}>
+                  {ans.answer_text}
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+        <button onClick={goToNext} disabled={currentQuestionIndex === game.questions.length - 1} className="ai-game-nav-arrow right"><ChevronRight size={32} /></button>
+      </div>
         </div>
     );
 };
@@ -515,7 +968,7 @@ const AIRequirementsForm = ({ setGeneratedGame }) => {
   );
 };
 
-const AIStyleAssistant = ({ setStyles }) => {
+export const AIStyleAssistant = ({ setStyles }) => {
   const [description, setDescription] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
@@ -567,7 +1020,7 @@ const AIStyleAssistant = ({ setStyles }) => {
   );
 };
 
-const StyleControlPanel = ({ styles, setStyles }) => {
+const StyleControlPanel = ({ styles, setStyles, setLayout }) => {
   const presets = [
     { name: 'Claro', containerBg: '#FFFFFF', questionText: '#111827', answerBg: '#F9FAFB', answerTextColor: '#1F2937', timerBg: '#3B82F6', timerTextColor: '#FFFFFF' },
     { name: 'Oscuro', containerBg: '#1F2937', questionText: '#F9FAFB', answerBg: '#374151', answerTextColor: '#F3F4F6', timerBg: '#FBBF24', timerTextColor: '#1F2937' },
@@ -667,9 +1120,11 @@ const CreateGameAIScreen = () => {
   const [generatedGame, setGeneratedGame] = useState(null);
   const [saveError, setSaveError] = useState(null);
   const [imageUrls, setImageUrls] = useState([]);
+  const [uploadedImages, setUploadedImages] = useState([]);
   const [gameId, setGameId] = useState(null); // ID for auto-saving
   const [isAutoSaving, setIsAutoSaving] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const [styles, setStyles] = useState({
     containerBg: '#ffffff',
@@ -681,8 +1136,57 @@ const CreateGameAIScreen = () => {
     timerTextColor: '#FFFFFF',
   });
 
+  const LAYOUT_PRESETS = {
+    'default': { question: { x: 40, y: 24 }, image: { x: 20, y: 48 }, answers: { x: 40, y: 120 }, timer: { x: 160, y: 8 } },
+    'compact': { question: { x: 20, y: 10 }, image: { x: 20, y: 40 }, answers: { x: 20, y: 86 }, timer: { x: 140, y: 6 } },
+    'image-left': { question: { x: 110, y: 14 }, image: { x: 18, y: 14 }, answers: { x: 110, y: 80 }, timer: { x: 170, y: 8 } },
+    'image-right': { question: { x: 20, y: 14 }, image: { x: 330, y: 14 }, answers: { x: 20, y: 80 }, timer: { x: 320, y: 8 } },
+  };
+
+  const [layoutKey, setLayoutKey] = useState('default');
+  const [layout, setLayout] = useState(LAYOUT_PRESETS['default']);
+
+  // Restore unsaved layout selection from localStorage (helps if user navigates away before first save)
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('unsaved_layout');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.key) {
+          setLayoutKey(parsed.key);
+          setLayout(LAYOUT_PRESETS[parsed.key] || LAYOUT_PRESETS['default']);
+          console.log('Restored unsaved layout from localStorage:', parsed.key);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to restore unsaved layout:', err);
+    }
+  }, []);
+
+  // Cargar imágenes subidas por el usuario
+  useEffect(() => {
+    const fetchUserImages = async () => {
+      try {
+        const images = await ImageService.getMyImages();
+        setUploadedImages(images);
+      } catch (error) {
+        console.error("Failed to fetch user images:", error);
+      }
+    };
+    fetchUserImages();
+  }, []);
+
   // Debounce timer
   const debounceTimeoutRef = useRef(null);
+
+  // Función para asegurar que todas las preguntas tengan una imagen
+  const ensureDefaultImages = (questions) => {
+    return questions.map(question => ({
+      ...question,
+      imageUrl: question.imageUrl || DEFAULT_TRANSPARENT_IMAGE,
+      hasUserImage: !!question.imageUrl // Flag para saber si el usuario agregó una imagen real
+    }));
+  };
 
   const handleAutoSave = useCallback(async (gameData) => {
     if (!gameData) return;
@@ -690,7 +1194,25 @@ const CreateGameAIScreen = () => {
     setSaveError(null);
     try {
       let result;
-      const dataToSave = { ...gameData, styles, is_public: isPublic };
+      // Asegurar que todas las preguntas tengan una imagen (agregar imagen transparente si no hay)
+      const questionsWithImages = ensureDefaultImages(gameData.questions || []);
+      
+      // Save layout as the selected key unless user chose a custom layout object
+      const dataToSave = { 
+        ...gameData, 
+        questions: questionsWithImages,
+        styles, 
+        layout: layoutKey !== 'custom' ? layoutKey : layout, 
+        images: imageUrls, 
+        is_public: isPublic 
+      };
+      console.log('AutoSave: saving game with payload summary', {
+        title: dataToSave.title,
+        questionsCount: dataToSave.questions?.length,
+        layout: dataToSave.layout,
+        styles: dataToSave.styles,
+        imagesCount: (dataToSave.images || []).length,
+      });
       delete dataToSave.isPublic;
 
       if (gameId) {
@@ -705,12 +1227,68 @@ const CreateGameAIScreen = () => {
       if (!result.success) {
         setSaveError(result.message || 'Error en el autoguardado.');
       }
+      else {
+        // autosave successful -> clear local marker if present
+        try { localStorage.removeItem('unsaved_layout'); } catch (err) {}
+      }
     } catch (error) {
       setSaveError(error.message || 'Error de conexión durante el autoguardado.');
     } finally {
       setIsAutoSaving(false);
     }
-  }, [gameId, styles, isPublic]);
+  }, [gameId, styles, layout, isPublic, layoutKey, imageUrls]);
+
+  // Save layout immediately when user selects a template to avoid losing selection before debounce
+  const handleLayoutSelectImmediate = async (key) => {
+    const newLayoutKey = key;
+    const newLayout = LAYOUT_PRESETS[newLayoutKey] || LAYOUT_PRESETS['default'];
+    setLayoutKey(newLayoutKey);
+    setLayout(newLayout);
+
+    // Persist the selection locally immediately so navigation won't lose it
+    try {
+      localStorage.setItem('unsaved_layout', JSON.stringify({ key: newLayoutKey, updatedAt: Date.now() }));
+    } catch (err) {
+      console.warn('Could not write unsaved_layout to localStorage', err);
+    }
+
+    // Also update in-memory generatedGame so autosave payload includes the selection
+    if (generatedGame) {
+      setGeneratedGame(prev => ({ ...(prev || {}), layout: newLayoutKey !== 'custom' ? newLayoutKey : newLayout }));
+    }
+
+    if (!generatedGame) return;
+
+    // Asegurar que todas las preguntas tengan una imagen (agregar imagen transparente si no hay)
+    const questionsWithImages = ensureDefaultImages(generatedGame.questions || []);
+    
+    const payload = { 
+      ...generatedGame, 
+      questions: questionsWithImages,
+      styles, 
+      layout: newLayoutKey !== 'custom' ? newLayoutKey : newLayout, 
+      images: imageUrls, 
+      is_public: isPublic 
+    };
+    try {
+      let res;
+      if (gameId) {
+        res = await AIGameViewModel.updateGame(gameId, payload);
+      } else {
+        res = await AIGameViewModel.saveGame(payload, true);
+        if (res.success && res.gameId) setGameId(res.gameId);
+      }
+      if (!res.success) {
+        console.error('Failed to save layout selection immediately:', res.message || res);
+      } else {
+        console.log('Layout selection saved immediately:', newLayoutKey);
+        // clear localStorage marker since it was persisted to backend
+        try { localStorage.removeItem('unsaved_layout'); } catch (err) {}
+      }
+    } catch (err) {
+      console.error('Error saving layout selection immediately:', err);
+    }
+  };
 
   useEffect(() => {
     if (generatedGame) {
@@ -721,7 +1299,7 @@ const CreateGameAIScreen = () => {
         handleAutoSave(generatedGame);
       }, 2000); // Auto-save after 2 seconds of inactivity
     }
-    }, [generatedGame, styles, handleAutoSave]);
+    }, [generatedGame, styles, layout, handleAutoSave, layoutKey, imageUrls]);
 
   const screenStyle = {
     '--container-bg': styles.containerBg,
@@ -745,6 +1323,20 @@ const CreateGameAIScreen = () => {
     });
   };
 
+  const handleUploadComplete = (uploadResult) => {
+    // Si es un refresh de imágenes
+    if (uploadResult.refresh && uploadResult.images) {
+      setUploadedImages(uploadResult.images);
+      return;
+    }
+    
+    // Si es una subida normal
+    if (uploadResult.success) {
+      const newImage = { id: uploadResult.imageId, image_url: uploadResult.imageUrl };
+      setUploadedImages(prev => [newImage, ...prev]);
+    }
+  };
+
   const handleTitleChange = (newTitle) => {
     if (!generatedGame) return;
     setGeneratedGame({
@@ -755,7 +1347,7 @@ const CreateGameAIScreen = () => {
 
   return (
     <div className="flex h-screen bg-white" style={screenStyle}>
-      <NewSidebar onImagesLoaded={setImageUrls} />
+  <NewSidebar onImagesLoaded={setImageUrls} />
       <div className="flex-1 flex flex-col">
         <MainContent 
           game={generatedGame} 
@@ -765,16 +1357,29 @@ const CreateGameAIScreen = () => {
           onStateChange={setIsPublic}
           onTitleChange={handleTitleChange}
           styles={styles}
+          layout={layout}
+          layoutKey={layoutKey}
+          uploadedImages={uploadedImages}
+          onUploadComplete={handleUploadComplete}
+          onShareClick={() => setIsShareModalOpen(true)}
         />
         {saveError && <div className="p-4 text-center text-sm text-red-600 bg-red-100">{saveError}</div>}
       </div>
       <div className="w-96 bg-white border-l border-gray-200 flex flex-col">
         {generatedGame ? (
-          <StyleControlPanel styles={styles} setStyles={setStyles} />
+          <StyleControlPanel styles={styles} setStyles={setStyles} setLayout={setLayout} />
         ) : (
           <AIRequirementsForm setGeneratedGame={setGeneratedGame} />
         )}
       </div>
+
+      {/* Share Modal */}
+      <ShareModal 
+        isOpen={isShareModalOpen}
+        onClose={() => setIsShareModalOpen(false)}
+        gameId={generatedGame?.id}
+        gameTitle={generatedGame?.title}
+      />
     </div>
   );
 };

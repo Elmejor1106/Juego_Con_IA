@@ -13,11 +13,25 @@ const AuthViewModel = {
 
   register: async (username, email, password, onSuccess, onError) => {
     try {
-      await AuthService.register(username, email, password);
-      onSuccess('Registro exitoso. Ahora puedes iniciar sesión.');
-      return { success: true };
+      const data = await AuthService.register(username, email, password);
+      if (data.requiresVerification) {
+        onSuccess('Registro exitoso. Por favor, revisa tu correo electrónico para verificar tu cuenta antes de iniciar sesión.');
+      } else {
+        onSuccess('Registro exitoso. Ahora puedes iniciar sesión.');
+      }
+      return { success: true, requiresVerification: data.requiresVerification };
     } catch (error) {
       onError(error.message);
+      return { success: false, error: error.message };
+    }
+  },
+
+  // AÑADIDO: Verificar correo electrónico
+  verifyEmail: async (token) => {
+    try {
+      const data = await AuthService.verifyEmail(token);
+      return { success: true, message: data.msg, verified: data.verified };
+    } catch (error) {
       return { success: false, error: error.message };
     }
   },

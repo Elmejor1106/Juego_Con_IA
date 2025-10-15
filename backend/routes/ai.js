@@ -36,7 +36,7 @@ router.post('/chat', async (req, res) => {
 
   try {
     // For text-only input, use the gemini-pro model
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+    const model = genAI.getGenerativeModel({ model: 'gemini-pro-latest' });
 
     // System message to set the context for the AI
     const systemMessage =
@@ -98,7 +98,7 @@ router.post('/create-game', async (req, res) => {
   try {
     // Use a model that supports JSON output
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-pro-latest',
       generationConfig: {
         response_mime_type: 'application/json',
       },
@@ -157,13 +157,9 @@ const prompt = `
 router.post('/generate-questions', async (req, res) => {
   const { topic, language, count } = req.body;
 
-  if (!topic || !language || !count) {
-    return res.status(400).json({ error: 'Topic, language, and count are required' });
-  }
-
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-pro-latest',
       generationConfig: {
         response_mime_type: 'application/json',
       },
@@ -244,7 +240,7 @@ router.post('/generate-style', async (req, res) => {
 
   try {
     const model = genAI.getGenerativeModel({
-      model: 'gemini-1.5-flash',
+      model: 'gemini-pro-latest',
       generationConfig: {
         response_mime_type: 'application/json',
       },

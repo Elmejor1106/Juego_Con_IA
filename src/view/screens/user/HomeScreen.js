@@ -34,11 +34,16 @@ const HomeScreen = () => {
 
   useEffect(() => {
     const loadData = async () => {
+      console.log('🔍 [STATS DEBUG] HomeScreen: Iniciando carga de datos');
       setLoading(true);
       // Fetch stats
       const statsResult = await UserViewModel.fetchDashboardStats();
+      console.log('🔍 [STATS DEBUG] HomeScreen: Resultado de estadísticas:', statsResult);
       if (statsResult.success) {
+        console.log('🔍 [STATS DEBUG] HomeScreen: Estableciendo stats:', statsResult.data);
         setStats(statsResult.data);
+      } else {
+        console.error('🔍 [STATS DEBUG] HomeScreen: Error obteniendo stats:', statsResult.message);
       }
       // Fetch public games
       const gamesResult = await GameViewModel.fetchPublicGames();
@@ -46,6 +51,7 @@ const HomeScreen = () => {
         setPublicGames(gamesResult.games.slice(0, 3)); // Get first 3 games
       }
       setLoading(false);
+      console.log('🔍 [STATS DEBUG] HomeScreen: Estado final stats:', stats);
     };
     loadData();
   }, []);
@@ -62,6 +68,7 @@ const HomeScreen = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
+        {console.log('🔍 [STATS DEBUG] HomeScreen: Renderizando tarjetas - stats:', stats, 'gamesCreated:', stats?.gamesCreated, 'gamesPlayed:', stats?.gamesPlayed)}
         <StatCard title="Juegos Creados" value={stats?.gamesCreated ?? 0} icon={<GamepadIcon />} color="#3B82F6" loading={loading} />
         <StatCard title="Partidas Jugadas" value={stats?.gamesPlayed ?? 0} icon={<PlayIcon />} color="#10B981" loading={loading} />
       </div>

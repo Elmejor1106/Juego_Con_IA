@@ -19,22 +19,40 @@ const authMiddleware = async (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     
     // En lugar de confiar en el token, obtenemos los datos frescos de la BD
-    const [rows] = await pool.query('SELECT id, role, status FROM users WHERE id = ?', [decoded.user.id]);
-    const user = rows[0];
+    // Agregar protección contra problemas de concurrencia
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      
+      const [rows] = await connection.query(
+        'SELECT id, username, role, status FROM users WHERE id = ? FOR UPDATE', 
+        [decoded.user.id]
+      );
+      const user = rows[0];
 
-    if (!user) {
+      await connection.commit();
+      
+      if (!user) {
         return res.status(401).json({ msg: 'Usuario no encontrado.' });
-    }
+      }
 
-    if (user.status !== 'active') {
+      if (user.status !== 'active') {
         return res.status(403).json({ msg: 'Tu cuenta está inactiva. Contacta al administrador.' });
-    }
+      }
 
-    // Adjuntamos el usuario fresco (con id, role, status) al request
-    req.user = user;
-    next();
+      // Adjuntamos el usuario fresco (con id, role, status, username) al request
+      req.user = user;
+      next();
+
+    } catch (dbError) {
+      await connection.rollback();
+      throw dbError;
+    } finally {
+      connection.release();
+    }
 
   } catch (err) {
+    console.error('Error en authMiddleware:', err);
     res.status(401).json({ msg: 'El token no es válido' });
   }
 };
