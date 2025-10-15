@@ -1,8 +1,7 @@
-
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 
-console.log('DB_HOST:', process.env.DB_HOST);
+console.log('DB_HOST:', process.env.DB_HOST || 'host.docker.internal');
 console.log('DB_USER:', process.env.DB_USER);
 console.log('DB_NAME:', process.env.DB_NAME);
 // No mostramos la contraseña por seguridad
@@ -10,7 +9,7 @@ console.log('DB_NAME:', process.env.DB_NAME);
 let pool;
 try {
   pool = mysql.createPool({
-    host: process.env.DB_HOST,
+    host: process.env.DB_HOST || 'host.docker.internal',
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
     database: process.env.DB_NAME,
