@@ -1,12 +1,14 @@
 pipeline {
-    agent {
-        docker {
-            image 'docker:20.10.24-dind'
-            args '-v /var/run/docker.sock:/var/run/docker.sock'
-        }
-    }
+    agent any
+
     stages {
         stage('Build & Test Backend') {
+            agent {
+                docker {
+                    image 'node:18-alpine'  // Imagen ligera con Node y npm
+                    args '-v /var/run/docker.sock:/var/run/docker.sock'
+                }
+            }
             steps {
                 dir('backend') {
                     sh 'npm install'
@@ -19,15 +21,16 @@ pipeline {
             steps {
                 dir('backend') {
                     script {
-                        def appImage = docker.build('my-backend-app:latest')
+                        docker.build('my-backend-app:latest')
                     }
                 }
             }
         }
 
-        stage('Test Docker') {
+        stage('Verify Docker') {
             steps {
                 sh 'docker --version'
+                sh 'docker images | grep my-backend-app || echo "⚠️ No se encontró la imagen"'
             }
         }
     }
