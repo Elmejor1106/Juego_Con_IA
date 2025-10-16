@@ -1,8 +1,12 @@
 pipeline {
     agent any
-
     stages {
         stage('Build & Test Backend') {
+            agent {
+                docker {
+                    image 'node:18-alpine'
+                }
+            }
             steps {
                 dir('backend') {
                     sh 'npm install'
